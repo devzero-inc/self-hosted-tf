@@ -48,6 +48,13 @@ data "aws_ami" "k8s_ubuntu_ami_1_29" {
 resource "aws_launch_template" "ubuntu" {
   name_prefix = "${var.cluster_name}-ubuntu"
   image_id    = data.aws_ami.k8s_ubuntu_ami_1_29.id
+  
+  tags = merge(
+    {
+      Name = "${var.cluster_name}-launch-template"
+    },
+    var.common_tags
+  )
 
   metadata_options {
     http_endpoint               = "enabled"
@@ -57,10 +64,9 @@ resource "aws_launch_template" "ubuntu" {
 
   tag_specifications {
     resource_type = "instance"
-    tags          = var.common_tags
+    tags          = merge({ Name = "${var.cluster_name}-node" }, var.common_tags)
   }
 }
-
 
 resource "aws_eks_cluster" "this" {
   name     = var.cluster_name
@@ -136,7 +142,6 @@ resource "aws_eks_node_group" "node" {
   node_role_arn   = aws_iam_role.eks-node.arn
   subnet_ids      = var.subnet_ids
   instance_types  = [var.worker_instance_type]
-  version         = aws_eks_cluster.this.version
   ami_type        = "CUSTOM"
 
   scaling_config {
@@ -194,7 +199,7 @@ data "aws_iam_policy_document" "ebs_csi_driver_assume_role" {
 }
 
 resource "aws_iam_role" "ebs_csi_driver" {
-  name               = "ebs-csi-driver"
+  name               = "${var.cluster_name}-ebs-csi-driver"
   assume_role_policy = data.aws_iam_policy_document.ebs_csi_driver_assume_role.json
 }
 
@@ -208,6 +213,8 @@ resource "aws_eks_addon" "ebs" {
   addon_name               = "aws-ebs-csi-driver"
   addon_version            = "v1.30.0-eksbuild.1"
   service_account_role_arn = aws_iam_role.ebs_csi_driver.arn
+
+  depends_on = [aws_eks_node_group.node]
 }
 
 data "aws_eks_cluster" "cluster" {

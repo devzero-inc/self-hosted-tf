@@ -18,6 +18,18 @@ resource "aws_vpc" "this" {
   )
 }
 
+# Internet Gateway
+resource "aws_internet_gateway" "this" {
+  vpc_id = aws_vpc.this.id
+
+  tags = merge(
+    {
+      Terraform = "true"
+      Name      = "${local.prefix}-igw"
+    }, var.common_tags
+  )
+}
+
 # Subnets
 resource "aws_subnet" "private_subnets" {
   count = length(var.private_subnets) > 0 ? length(var.private_subnets) : 0
@@ -25,6 +37,7 @@ resource "aws_subnet" "private_subnets" {
   vpc_id = aws_vpc.this.id
 
   cidr_block        = var.private_subnets[count.index]
+  map_public_ip_on_launch = true
   availability_zone = var.availability_zones[count.index]
 
   tags = merge(
@@ -65,4 +78,26 @@ resource "aws_security_group" "private_subnets" {
       Name      = "${local.prefix}-private-subnets-sg"
     }, var.common_tags
   )
+}
+
+# Route table for private subnets with Internet Gateway route
+resource "aws_route_table" "private" {
+  vpc_id = aws_vpc.this.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.this.id
+  }
+
+  tags = merge({
+    Name      = "${local.prefix}-private-rt"
+    Terraform = "true"
+  }, var.common_tags)
+}
+
+# Route table association for private subnets
+resource "aws_route_table_association" "private" {
+  count = length(var.private_subnets)
+  subnet_id      = aws_subnet.private_subnets[count.index].id
+  route_table_id = aws_route_table.private.id
 }

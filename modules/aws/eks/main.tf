@@ -48,7 +48,6 @@ data "aws_ami" "k8s_ubuntu_ami_1_29" {
 resource "aws_launch_template" "ubuntu" {
   name_prefix   = "${var.cluster_name}-ubuntu"
   image_id      = data.aws_ami.k8s_ubuntu_ami_1_29.id
-  instance_type = var.worker_instance_type
 
   user_data = base64encode(<<-EOT
     #!/bin/bash

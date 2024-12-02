@@ -48,7 +48,17 @@ data "aws_ami" "k8s_ubuntu_ami_1_29" {
 resource "aws_launch_template" "ubuntu" {
   name_prefix = "${var.cluster_name}-ubuntu"
   image_id    = data.aws_ami.k8s_ubuntu_ami_1_29.id
-  
+
+  instance_type = var.worker_instance_type
+
+  user_data = base64encode(<<-EOT
+    #!/bin/bash
+    set -o xtrace
+    /etc/eks/bootstrap.sh ${var.cluster_name} \
+      --kubelet-extra-args '--node-labels=eks.amazonaws.com/nodegroup=${aws_eks_node_group.node.node_group_name},kubernetes.io/role=worker'
+  EOT
+  )
+
   tags = merge(
     {
       Name = "${var.cluster_name}-launch-template"

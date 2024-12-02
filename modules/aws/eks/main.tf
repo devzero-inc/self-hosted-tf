@@ -39,34 +39,28 @@ resource "aws_iam_role_policy_attachment" "eks-cluster-AmazonEBSCSIDriverPolicy"
   role       = aws_iam_role.eks-cluster.name
 }
 
-#data "aws_ami" "k8s_ubuntu_ami_1_29" {
-#  name_regex  = "ubuntu-eks/k8s_1.30/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"
-#  most_recent = true
-#  owners      = ["099720109477"]
-#}
-#
-#resource "aws_launch_template" "ubuntu" {
-#  name_prefix = "${var.cluster_name}-ubuntu"
-#  image_id    = data.aws_ami.k8s_ubuntu_ami_1_29.id
-#  
-#  tags = merge(
-#    {
-#      Name = "${var.cluster_name}-launch-template"
-#    },
-#    var.common_tags
-#  )
-#
-#  metadata_options {
-#    http_endpoint               = "enabled"
-#    http_tokens                 = "required"
-#    http_put_response_hop_limit = 2
-#  }
-#
-#  tag_specifications {
-#    resource_type = "instance"
-#    tags          = merge({ Name = "${var.cluster_name}-node" }, var.common_tags)
-#  }
-#}
+data "aws_ami" "k8s_ubuntu_ami_1_29" {
+  name_regex  = "ubuntu-eks/k8s_1.30/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"
+  most_recent = true
+  owners      = ["099720109477"]
+}
+
+resource "aws_launch_template" "ubuntu" {
+  name_prefix = "${var.cluster_name}-ubuntu"
+  image_id    = data.aws_ami.k8s_ubuntu_ami_1_29.id
+  
+  tags = merge(
+    {
+      Name = "${var.cluster_name}-launch-template"
+    },
+    var.common_tags
+  )
+
+  tag_specifications {
+    resource_type = "instance"
+    tags          = merge({ Name = "${var.cluster_name}-node" }, var.common_tags)
+  }
+}
 
 resource "aws_eks_cluster" "this" {
   name     = var.cluster_name
@@ -142,11 +136,17 @@ resource "aws_eks_node_group" "node" {
   node_role_arn   = aws_iam_role.eks-node.arn
   subnet_ids      = var.subnet_ids
   instance_types  = [var.worker_instance_type]
+  ami_type        = "CUSTOM"
 
   scaling_config {
     desired_size = var.desired_node_size
     max_size     = var.max_node_size
     min_size     = var.min_node_size
+  }
+
+  launch_template {
+    id      = aws_launch_template.ubuntu.id
+    version = aws_launch_template.ubuntu.latest_version
   }
 
   tags = merge(
@@ -163,40 +163,6 @@ resource "aws_eks_node_group" "node" {
     aws_iam_role_policy_attachment.eks-node-AmazonEBSCSIDriverPolicy,
   ]
 }
-
-#resource "aws_eks_node_group" "node" {
-#  cluster_name    = aws_eks_cluster.this.name
-#  node_group_name = "${aws_eks_cluster.this.name}-ng"
-#  node_role_arn   = aws_iam_role.eks-node.arn
-#  subnet_ids      = var.subnet_ids
-#  instance_types  = [var.worker_instance_type]
-#  ami_type        = "CUSTOM"
-#
-#  scaling_config {
-#    desired_size = var.desired_node_size
-#    max_size     = var.max_node_size
-#    min_size     = var.min_node_size
-#  }
-#
-#  launch_template {
-#    id      = aws_launch_template.ubuntu.id
-#    version = aws_launch_template.ubuntu.latest_version
-#  }
-#
-#  tags = merge(
-#    {
-#      Terraform = "true"
-#      Name      = "${aws_eks_cluster.this.name}-ng"
-#    }, var.common_tags
-#  )
-#
-#  depends_on = [
-#    aws_iam_role_policy_attachment.eks-node-AmazonEKSWorkerNodePolicy,
-#    aws_iam_role_policy_attachment.eks-node-AmazonEKS_CNI_Policy,
-#    aws_iam_role_policy_attachment.eks-node-AmazonEC2ContainerRegistryReadOnly,
-#    aws_iam_role_policy_attachment.eks-node-AmazonEBSCSIDriverPolicy,
-#  ]
-#}
 
 data "aws_iam_policy_document" "ebs_csi_driver_assume_role" {
   statement {

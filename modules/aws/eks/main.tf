@@ -55,7 +55,7 @@ resource "aws_launch_template" "ubuntu" {
     set -e
 
     # Cluster-specific values
-    B64_CLUSTER_CA="${data.aws_eks_cluster_auth.cluster.cluster_ca_data}"
+    B64_CLUSTER_CA="${aws_eks_cluster.this.certificate_authority[0].data}"
     API_SERVER_URL="${data.aws_eks_cluster.cluster.endpoint}"
 
     # Bootstrap the node

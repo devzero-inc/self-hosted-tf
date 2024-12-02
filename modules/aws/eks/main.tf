@@ -46,16 +46,22 @@ data "aws_ami" "k8s_ubuntu_ami_1_29" {
 }
 
 resource "aws_launch_template" "ubuntu" {
-  name_prefix = "${var.cluster_name}-ubuntu"
-  image_id    = data.aws_ami.k8s_ubuntu_ami_1_29.id
-
+  name_prefix   = "${var.cluster_name}-ubuntu"
+  image_id      = data.aws_ami.k8s_ubuntu_ami_1_29.id
   instance_type = var.worker_instance_type
 
   user_data = base64encode(<<-EOT
     #!/bin/bash
-    set -o xtrace
-    /etc/eks/bootstrap.sh ${var.cluster_name} \
-      --kubelet-extra-args '--node-labels=eks.amazonaws.com/nodegroup=${aws_eks_node_group.node.node_group_name},kubernetes.io/role=worker'
+    set -e
+
+    # Cluster-specific values
+    B64_CLUSTER_CA="${data.aws_eks_cluster_auth.cluster.cluster_ca_data}"
+    API_SERVER_URL="${data.aws_eks_cluster.cluster.endpoint}"
+
+    # Bootstrap the node
+    /etc/eks/bootstrap.sh "${aws_eks_cluster.this.name}" \
+      --b64-cluster-ca $B64_CLUSTER_CA \
+      --apiserver-endpoint $API_SERVER_URL
   EOT
   )
 

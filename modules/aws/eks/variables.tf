@@ -51,3 +51,9 @@ variable "common_tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "disk_size" {
+  description = "Nodes disk size in GiB"
+  type = number
+  default = 200
+}

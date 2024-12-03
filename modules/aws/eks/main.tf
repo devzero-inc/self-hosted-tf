@@ -64,6 +64,14 @@ resource "aws_launch_template" "ubuntu" {
   EOT
   )
 
+  block_device_mappings {
+    device_name = "/dev/sda1"
+
+    ebs {
+      volume_size = var.disk_size
+    }
+  }
+
   tags = merge(
     {
       Name = "${var.cluster_name}-launch-template"

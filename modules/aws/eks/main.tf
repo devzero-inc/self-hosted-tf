@@ -34,11 +34,6 @@ resource "aws_iam_role_policy_attachment" "eks-cluster-AmazonEKSVPCResourceContr
   role       = aws_iam_role.eks-cluster.name
 }
 
-resource "aws_iam_role_policy_attachment" "eks-cluster-AmazonEBSCSIDriverPolicy" {
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
-  role       = aws_iam_role.eks-cluster.name
-}
-
 data "aws_ami" "k8s_ubuntu_ami_1_29" {
   name_regex  = "ubuntu-eks/k8s_1.30/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"
   most_recent = true
@@ -108,7 +103,6 @@ resource "aws_eks_cluster" "this" {
     aws_iam_role_policy_attachment.eks-cluster-AmazonEKSServicePolicy,
     aws_iam_role_policy_attachment.eks-cluster-AmazonEKSClusterPolicy,
     aws_iam_role_policy_attachment.eks-cluster-AmazonEKSVPCResourceController,
-    aws_iam_role_policy_attachment.eks-cluster-AmazonEBSCSIDriverPolicy,
   ]
 }
 
@@ -148,11 +142,6 @@ resource "aws_iam_role_policy_attachment" "eks-node-AmazonEC2ContainerRegistryRe
   role       = aws_iam_role.eks-node.name
 }
 
-resource "aws_iam_role_policy_attachment" "eks-node-AmazonEBSCSIDriverPolicy" {
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
-  role       = aws_iam_role.eks-node.name
-}
-
 resource "aws_eks_node_group" "node" {
   cluster_name    = aws_eks_cluster.this.name
   node_group_name = "${aws_eks_cluster.this.name}-ng"
@@ -183,77 +172,9 @@ resource "aws_eks_node_group" "node" {
     aws_iam_role_policy_attachment.eks-node-AmazonEKSWorkerNodePolicy,
     aws_iam_role_policy_attachment.eks-node-AmazonEKS_CNI_Policy,
     aws_iam_role_policy_attachment.eks-node-AmazonEC2ContainerRegistryReadOnly,
-    aws_iam_role_policy_attachment.eks-node-AmazonEBSCSIDriverPolicy,
   ]
 }
 
-data "aws_iam_policy_document" "ebs_csi_driver_assume_role" {
-  statement {
-    effect = "Allow"
-
-    principals {
-      type        = "Federated"
-      identifiers = [aws_iam_openid_connect_provider.cluster.arn]
-    }
-
-    actions = [
-      "sts:AssumeRoleWithWebIdentity",
-    ]
-
-    condition {
-      test     = "StringEquals"
-      variable = "${aws_iam_openid_connect_provider.cluster.url}:aud"
-      values   = ["sts.amazonaws.com"]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "${aws_iam_openid_connect_provider.cluster.url}:sub"
-      values   = ["system:serviceaccount:kube-system:ebs-csi-controller-sa"]
-    }
-
-  }
-}
-
-resource "aws_iam_role" "ebs_csi_driver" {
-  name               = "${var.cluster_name}-ebs-csi-driver"
-  assume_role_policy = data.aws_iam_policy_document.ebs_csi_driver_assume_role.json
-}
-
-resource "aws_iam_role_policy_attachment" "AmazonEBSCSIDriverPolicy" {
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
-  role       = aws_iam_role.ebs_csi_driver.name
-}
-
-resource "aws_eks_addon" "ebs" {
-  cluster_name             = aws_eks_cluster.this.name
-  addon_name               = "aws-ebs-csi-driver"
-  addon_version            = "v1.30.0-eksbuild.1"
-  service_account_role_arn = aws_iam_role.ebs_csi_driver.arn
-
-  depends_on = [aws_eks_node_group.node]
-}
-
-data "aws_eks_cluster" "cluster" {
-  name = concat(aws_eks_cluster.this.*.id, [""])[0]
-}
-
-data "aws_eks_cluster_auth" "cluster" {
-  name = concat(aws_eks_cluster.this.*.id, [""])[0]
-}
-
-resource "aws_iam_openid_connect_provider" "cluster" {
-  client_id_list  = ["sts.amazonaws.com"]
-  thumbprint_list = [data.tls_certificate.cluster.certificates.0.sha1_fingerprint]
-  url             = flatten(concat(aws_eks_cluster.this[*].identity[*].oidc.0.issuer, [""]))[0]
-
-  tags = merge(
-    {
-      Terraform           = "true"
-      KubespotEnvironment = var.environment
-    }, var.common_tags
-  )
-}
 
 data "tls_certificate" "cluster" {
   url = flatten(concat(aws_eks_cluster.this[*].identity[*].oidc.0.issuer, [""]))[0]

@@ -219,6 +219,10 @@ fi
 if [[ "$identity_arn" == *"assumed-role"* ]]; then
     role_name=$(extract_role_name "$identity_arn")
     echo "Detected assumed role. Resolving permissions for source role: $role_name"
+elif [[ "$identity_arn" == *"user"* ]]; then
+    role_name=$(echo "$identity_arn" | awk -F'/' '{print $NF}')
+    role_name=$(echo "$role_name" | sed 's/"$//')
+    echo "Detected IAM user. Resolving permissions for user: $role_name"
 else
     echo "Unsupported ARN type. Exiting."
     exit 1
@@ -226,12 +230,20 @@ fi
 
 get_attached_policies() {
     local role_name=$1
-    aws iam list-attached-role-policies --role-name "$role_name" --query "AttachedPolicies[].PolicyArn" --output text
+    if [[ "$identity_arn" == *"assumed-role"* ]]; then
+    	aws iam list-attached-role-policies --role-name "$role_name" --query "AttachedPolicies[].PolicyArn" --output text
+    else
+	aws iam list-attached-user-policies --user-name "$role_name" --query "AttachedPolicies[].PolicyArn" --output text    
+    fi
 }
 
 get_inline_policies() {
     local role_name=$1
-    aws iam list-role-policies --role-name "$role_name" --query "PolicyNames[]" --output text
+    if [[ "$identity_arn" == *"assumed-role"* ]]; then
+    	aws iam list-role-policies --role-name "$role_name" --query "PolicyNames[]" --output text
+    else
+        aws iam list-user-policies --user-name "$role_name" --query "PolicyNames[]" --output text
+    fi
 }
 
 get_policy_actions() {
@@ -242,7 +254,12 @@ get_policy_actions() {
 get_inline_policy_actions() {
     local role_name=$1
     local policy_name=$2
-    aws iam get-role-policy --role-name "$role_name" --policy-name "$policy_name" --query "PolicyDocument.Statement[].Action" --output text
+    if [[ "$identity_arn" == *"assumed-role"* ]]; then
+    	aws iam get-role-policy --role-name "$role_name" --policy-name "$policy_name" --query "PolicyDocument.Statement[].Action" --output text
+    else
+        aws iam get-user-policy --user-name "$role_name" --policy-name "$policy_name" --query "PolicyDocument.Statement[].Action" --output text
+    fi
+
 }
 
 print_table() {
@@ -271,7 +288,7 @@ EOF
 
 echo ""
 
-echo "Fetching attached policies for role: $role_name..."
+echo "Fetching attached policies for role/user: $role_name..."
 
 attached_policies=$(get_attached_policies "$role_name")
 
@@ -285,7 +302,7 @@ fi
 
 echo ""
 
-echo "Fetching inline policies for role: $role_name..."
+echo "Fetching inline policies for role/user: $role_name..."
 inline_policies=$(get_inline_policies "$role_name")
 
 echo ""

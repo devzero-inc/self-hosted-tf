@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# Define the required policy actions (from your provided policy)
 required_actions=(
     "autoscaling:CreateOrUpdateTags"
     "autoscaling:DeleteAutoscalingHook"
@@ -169,7 +168,6 @@ required_actions=(
     "sqs:UntagQueue"
 )
 
-# Function to check if AWS CLI is installed
 check_aws_cli() {
     if ! command -v aws &> /dev/null; then
         echo "AWS CLI not found. Please install it first."
@@ -177,36 +175,30 @@ check_aws_cli() {
     fi
 }
 
-# Function to get the caller identity
 get_caller_identity() {
     aws sts get-caller-identity --query "Arn"
 }
 
-# Function to extract role name from an ARN
 extract_role_name() {
     local arn=$1
     echo "$arn" | awk -F'/' '{print $(NF-1)}'
 }
 
-# Function to get all the attached policies (both AWS managed and custom)
 get_attached_policies() {
     local role_name=$1
     aws iam list-attached-role-policies --role-name "$role_name" --query "AttachedPolicies[].PolicyArn" --output text
 }
 
-# Function to get all the inline policies attached to the role
 get_inline_policies() {
     local role_name=$1
     aws iam list-role-policies --role-name "$role_name" --query "PolicyNames[]" --output text
 }
 
-# Function to get the permissions from a policy ARN
 get_policy_actions() {
     local policy_arn=$1
     aws iam get-policy-version --policy-arn "$policy_arn" --version-id $(aws iam list-policy-versions --policy-arn "$policy_arn" --query "Versions[0].VersionId" --output text) --query "PolicyVersion.Document.Statement[].Action" --output text
 }
 
-# Function to get the actions from an inline policy
 get_inline_policy_actions() {
     local role_name=$1
     local policy_name=$2
@@ -232,32 +224,27 @@ else
     exit 1
 fi
 
-# Function to get all the attached policies (both AWS managed and custom)
 get_attached_policies() {
     local role_name=$1
     aws iam list-attached-role-policies --role-name "$role_name" --query "AttachedPolicies[].PolicyArn" --output text
 }
 
-# Function to get all the inline policies attached to the role
 get_inline_policies() {
     local role_name=$1
     aws iam list-role-policies --role-name "$role_name" --query "PolicyNames[]" --output text
 }
 
-# Function to get the permissions from a policy ARN
 get_policy_actions() {
     local policy_arn=$1
     aws iam get-policy-version --policy-arn "$policy_arn" --version-id $(aws iam list-policy-versions --policy-arn "$policy_arn" --query "Versions[0].VersionId" --output text) --query "PolicyVersion.Document.Statement[].Action" --output text
 }
 
-# Function to get the actions from an inline policy
 get_inline_policy_actions() {
     local role_name=$1
     local policy_name=$2
     aws iam get-role-policy --role-name "$role_name" --policy-name "$policy_name" --query "PolicyDocument.Statement[].Action" --output text
 }
 
-# Function to format and print policies in tabular format
 print_table() {
     local header="$1"
     shift
@@ -275,7 +262,6 @@ print_table() {
 
 
 
-# Function to generate the custom policy with missing permissions
 generate_custom_policy() {
     local missing_permissions=("$@")  # Ensure it's passed as an array
     cat <<EOF
@@ -287,7 +273,6 @@ echo ""
 
 echo "Fetching attached policies for role: $role_name..."
 
-# List attached and inline policies for the resolved role
 attached_policies=$(get_attached_policies "$role_name")
 
 echo ""
@@ -328,10 +313,8 @@ for policy_name in $inline_policies; do
     role_actions+="$inline_policy_actions "
 done
 
-# Convert role_actions to an array
 role_actions_array=($role_actions)
 
-# Compare required actions with role actions
 missing_permissions=()
 for action in "${required_actions[@]}"; do
     if ! [[ " ${role_actions_array[@]} " =~ " ${action} " ]]; then

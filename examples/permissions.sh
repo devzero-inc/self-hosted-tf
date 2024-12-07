@@ -2,7 +2,6 @@
 
 control_plane_actions=(
     "autoscaling:CreateOrUpdateTags"
-    "autoscaling:DeleteAutoscalingHook"
     "autoscaling:DeleteLifecycleHook"
     "autoscaling:DeleteTags"
     "autoscaling:DescribeLifecycleHookTypes"
@@ -170,7 +169,6 @@ control_plane_actions=(
 
 data_plane_actions=(
     "autoscaling:CreateOrUpdateTags"
-    "autoscaling:DeleteAutoscalingHook"
     "autoscaling:DeleteLifecycleHook"
     "autoscaling:DeleteTags"
     "autoscaling:DescribeLifecycleHookTypes"

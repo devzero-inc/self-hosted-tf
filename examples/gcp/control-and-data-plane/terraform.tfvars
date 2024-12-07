@@ -1,5 +1,5 @@
 # GCP Project
-project_id = "my-gcp-project"
+project_id = "devzero-kubernetes-sandbox"
 region     = "us-west2"
 zone       = "us-west2-a"
 

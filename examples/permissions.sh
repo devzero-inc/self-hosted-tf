@@ -398,6 +398,49 @@ get_inline_policy_actions() {
     aws iam get-role-policy --role-name "$role_name" --policy-name "$policy_name" --query "PolicyDocument.Statement[].Action" --output text
 }
 
+create_policy_json() {
+    local output_file="policy.json"
+    local missing_permissions=("$@")
+    declare -A service_action_map
+
+    for action in "${missing_permissions[@]}"; do
+        service_prefix=$(echo "$action" | cut -d':' -f1)
+        if [[ -z "${service_action_map[$service_prefix]}" ]]; then
+            service_action_map[$service_prefix]="$action"
+        else
+            service_action_map[$service_prefix]="${service_action_map[$service_prefix]},$action"
+        fi
+    done
+
+    echo "{" > $output_file
+    echo "  \"Version\": \"2012-10-17\"," >> $output_file
+    echo "  \"Statement\": [" >> $output_file
+
+    for service_prefix in "${!service_action_map[@]}"; do
+        echo "    {" >> $output_file
+        echo "      \"Effect\": \"Allow\"," >> $output_file
+        echo "      \"Action\": [" >> $output_file
+        IFS=',' read -ra actions <<< "${service_action_map[$service_prefix]}"
+        for action in "${actions[@]}"; do
+            echo "        \"$action\"," >> $output_file
+        done
+        sed -i '$ s/,$//' $output_file  # Remove trailing comma
+        echo "      ]," >> $output_file
+        echo "      \"Resource\": \"*\"" >> $output_file
+        echo "    }," >> $output_file
+    done
+
+  
+    sed -i '$ s/,$//' $output_file
+
+  
+    echo "  ]" >> $output_file
+    echo "}" >> $output_file
+
+    echo "IAM policy saved to $output_file"
+}
+
+
 # Main script logic
 check_aws_cli
 
@@ -475,19 +518,19 @@ print_table() {
 
 
 generate_custom_policy() {
-    local missing_permissions=("$@")  # Ensure it's passed as an array
+    local missing_permissions=("$@") 
     cat <<EOF
 $(printf "\"%s\",\n" "${missing_permissions[@]}" | sed '$ s/,$//')
 EOF
 }
 
-echo ""
+echo
 
 echo "Fetching attached policies for role/user: $role_name..."
 
 attached_policies=$(get_attached_policies "$role_name")
 
-echo ""
+echo 
 
 if [[ -n "$attached_policies" ]]; then
     print_table "Attached Policies" $attached_policies
@@ -495,12 +538,12 @@ else
     echo "No attached policies found."
 fi
 
-echo ""
+echo
 
 echo "Fetching inline policies for role/user: $role_name..."
 inline_policies=$(get_inline_policies "$role_name")
 
-echo ""
+echo 
 
 # Print inline policies in tabular format
 if [[ -n "$inline_policies" ]]; then
@@ -509,7 +552,7 @@ else
     echo "No inline policies found."
 fi
 
-echo ""
+echo
 
 echo "Fetching missing permissions..."
 
@@ -534,13 +577,18 @@ for action in "${required_actions[@]}"; do
     fi
 done
 
-echo ""
+echo 
 
 # If there are missing permissions, generate a custom policy
 if [ ${#missing_permissions[@]} -gt 0 ]; then
     echo "Required Permissions:"
     echo "----------------------------------------"
     generate_custom_policy "${missing_permissions[@]}"
+    echo 
+    echo "Generating a custom policy in policy.json..."
+    echo
+    create_policy_json "${missing_permissions[@]}"
+    
 else
     echo "All required permissions are present in the attached or inline policies."
 fi

@@ -13,12 +13,20 @@ resource "google_compute_network" "vpc" {
 
 # Subnets
 resource "google_compute_subnetwork" "private_subnets" {
-  count = length(var.subnets)
+  for_each = {for subnets in var.subnets : subnets.name => subnets}
 
-  name          = var.subnets[count.index].name
-  ip_cidr_range = var.subnets[count.index].ip_cidr_range
+  name          = each.key
+  ip_cidr_range = each.value.ip_cidr_range
   network       = google_compute_network.vpc.id
   region        = var.region
+
+  dynamic "secondary_ip_range" {
+    for_each = each.value.secondary_ip_range
+    content {
+      range_name = secondary_ip_range.value.range_name
+      ip_cidr_range = secondary_ip_range.value.ip_cidr_range
+    }
+  }
 }
 
 # Firewall Rules

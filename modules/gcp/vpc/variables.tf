@@ -23,8 +23,11 @@ variable "subnets" {
     name          = string
     ip_cidr_range = string
     region        = string
+    secondary_ip_range = list(object({
+      range_name    = string
+      ip_cidr_range = string
+    }))
   }))
   description = "List of subnets"
 }
-
 

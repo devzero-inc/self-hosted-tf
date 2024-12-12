@@ -444,9 +444,15 @@ create_policy_json() {
 check_aws_cli
 
 # Get the caller identity ARN
-identity_arn=$(get_caller_identity)
-if [[ -z "$identity_arn" ]]; then
-    echo "Failed to retrieve AWS caller identity."
+if ! identity_arn=$(get_caller_identity 2>&1); then
+    identity_arn=$(echo "$identity_arn" | sed '/./,$!d')
+    echo "Failed to retrieve AWS caller identity:"
+    echo " >>> $identity_arn"
+    echo
+    echo "To continue, please do :"
+    echo "  1. Set the appropriate environment variables for the AWS CLI (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_PROFILE etc)"
+    echo "  2. Check the contents of ~/.aws/credentials and/or ~/.aws/config (for information on SSO)"
+    echo "  3. Ask your cloud infrastructure team for docs on how to access your company's AWS account"
     exit 1
 fi
 

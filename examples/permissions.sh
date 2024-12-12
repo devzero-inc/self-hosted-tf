@@ -436,6 +436,7 @@ create_policy_json() {
     echo "}" >> $output_file
 
     echo "IAM policy saved to $output_file"
+    echo "You will need to attach this policy to your AWS IAM role/user. More info: https://www.devzero.io/docs/admin/install/aws#adding-permissions-to-aws"
 }
 
 
@@ -579,7 +580,7 @@ echo
 
 # If there are missing permissions, generate a custom policy
 if [ ${#missing_permissions[@]} -gt 0 ]; then
-    echo "Required Permissions:"
+    echo "You are missing these required permissions (more info: https://www.devzero.io/docs/admin/install/aws):"
     echo "----------------------------------------"
     generate_custom_policy "${missing_permissions[@]}"
     echo 

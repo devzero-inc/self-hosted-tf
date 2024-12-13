@@ -3,3 +3,6 @@
 
 .idea
 .vscode
+
+# generated policy.json file
+policy.json

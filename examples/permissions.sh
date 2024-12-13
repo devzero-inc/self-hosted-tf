@@ -338,22 +338,18 @@ required_actions=("${control_plane_actions[@]}")
 
 prompt_deployment_type() {
     echo ""
-    echo "Please select the deployment type:"
-    echo "1. Control Plane"
-    echo "2. Data Plane"
-    read -p "Enter your choice (1 or 2): " choice
-    echo ""
+    read -p "Please select the deployment type (Control Plane - 1, Data Plane - 2): " choice
     case $choice in
         1)
-            echo "You selected Control Plane."
+            print_success "Selected: Control Plane\n"
             required_actions=("${control_plane_actions[@]}")
             ;;
         2)
-            echo "You selected Data Plane."
+            print_success "Selected: Data Plane\n"
             required_actions=("${data_plane_actions[@]}")
             ;;
         *)
-            echo "Invalid choice. Defaulting to Control Plane."
+            print_weird_choice "Invalid choice; defaulting to Control Plane\n"
             required_actions=("${control_plane_actions[@]}")
             ;;
     esac
@@ -361,7 +357,7 @@ prompt_deployment_type() {
 
 check_aws_cli() {
     if ! command -v aws &> /dev/null; then
-        echo "AWS CLI not found. Please install it first."
+        print_failure "AWS CLI not found. Please install it from https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html \n"
         exit 1
     fi
 }
@@ -385,11 +381,6 @@ get_inline_policies() {
     aws iam list-role-policies --role-name "$role_name" --query "PolicyNames[]" --output text
 }
 
-get_policy_actions() {
-    local policy_arn=$1
-    aws iam get-policy-version --policy-arn "$policy_arn" --version-id $(aws iam list-policy-versions --policy-arn "$policy_arn" --query "Versions[0].VersionId" --output text) --query "PolicyVersion.Document.Statement[].Action" --output text
-}
-
 get_inline_policy_actions() {
     local role_name=$1
     local policy_name=$2
@@ -399,86 +390,87 @@ get_inline_policy_actions() {
 create_policy_json() {
     local output_file="policy.json"
     local missing_permissions=("$@")
-    declare -A service_action_map
-
-    for action in "${missing_permissions[@]}"; do
-        service_prefix=$(echo "$action" | cut -d':' -f1)
-        if [[ -z "${service_action_map[$service_prefix]}" ]]; then
-            service_action_map[$service_prefix]="$action"
-        else
-            service_action_map[$service_prefix]="${service_action_map[$service_prefix]},$action"
-        fi
-    done
-
+    
+    # Start the JSON file
     echo "{" > $output_file
     echo "  \"Version\": \"2012-10-17\"," >> $output_file
     echo "  \"Statement\": [" >> $output_file
-
-    for service_prefix in "${!service_action_map[@]}"; do
-        echo "    {" >> $output_file
-        echo "      \"Effect\": \"Allow\"," >> $output_file
-        echo "      \"Action\": [" >> $output_file
-        IFS=',' read -ra actions <<< "${service_action_map[$service_prefix]}"
-        for action in "${actions[@]}"; do
-            echo "        \"$action\"," >> $output_file
-        done
-        sed -i '$ s/,$//' $output_file  # Remove trailing comma
-        echo "      ]," >> $output_file
-        echo "      \"Resource\": \"*\"" >> $output_file
-        echo "    }," >> $output_file
+    echo "    {" >> $output_file
+    echo "      \"Effect\": \"Allow\"," >> $output_file
+    echo "      \"Action\": [" >> $output_file
+    
+    # Add all permissions
+    for action in "${missing_permissions[@]}"; do
+        echo "        \"$action\"," >> $output_file
     done
-
-  
-    sed -i '$ s/,$//' $output_file
-
-  
+    
+    # Remove the trailing comma from the last action
+    sed -i '' -e '$ s/,$//' $output_file
+    
+    # Close the JSON structure
+    echo "      ]," >> $output_file
+    echo "      \"Resource\": \"*\"" >> $output_file
+    echo "    }" >> $output_file
     echo "  ]" >> $output_file
     echo "}" >> $output_file
 
-    echo "IAM policy saved to $output_file"
-    echo "You will need to attach this policy to your AWS IAM role/user. More info: https://www.devzero.io/docs/admin/install/aws#adding-permissions-to-aws"
+    printf "\xF0\x9F\x92\xBE IAM policy saved to $(pwd)/$output_file\n"
+    printf "\xE2\x8F\xB0 \xE2\x9A\xA0 \xF0\x9F\x91\x89 Attach this policy to your AWS IAM role/user. More info: https://www.devzero.io/docs/admin/install/aws#adding-permissions-to-aws\n"
 }
 
+print_success() {
+    printf "\xE2\x9C\x85 $@" >&2
+}
+
+print_failure() {
+    printf "\xE2\x9D\x8C $@" >&2
+}
+
+print_weird_choice() {
+    printf "\xF0\x9F\x98\x8E $@" >&2
+}
+
+print_wip() {
+    printf "\xF0\x9F\x9A\xA7 $@" >&2
+}
 
 # Main script logic
 check_aws_cli
 
+print_success "AWS CLI Present\n"
+
 # Get the caller identity ARN
 if ! identity_arn=$(get_caller_identity 2>&1); then
     identity_arn=$(echo "$identity_arn" | sed '/./,$!d')
-    echo "Failed to retrieve AWS caller identity:"
-    echo " >>> $identity_arn"
+    print_failure "Failed to retrieve AWS caller identity:\n"
+    echo "  >>> Details:"
+    echo "         $identity_arn"
     echo
-    echo "To continue, please do :"
-    echo "  1. Set the appropriate environment variables for the AWS CLI (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_PROFILE etc)"
-    echo "  2. Check the contents of ~/.aws/credentials and/or ~/.aws/config (for information on SSO)"
-    echo "  3. Ask your cloud infrastructure team for docs on how to access your company's AWS account"
+    echo "  To continue, you need to do one of the following:"
+    echo "      1. Set the appropriate environment variables for the AWS CLI (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_PROFILE etc)"
+    echo "      2. Check the contents of ~/.aws/credentials or ~/.aws/config (if SSO, there should be something like https://<something>.awsapps.com/start#/)"
+    echo "      3. Ask your cloud infrastructure team for docs on how to access your company's AWS account"
     exit 1
 fi
+
+print_success "Caller Identity Retrieved\n"
 
 # Handle assumed-role ARNs
 if [[ "$identity_arn" == *"assumed-role"* ]]; then
     role_name=$(extract_role_name "$identity_arn")
-    echo "Detected assumed role. Resolving permissions for source role: $role_name"
+    echo "  >>> Detected assumed role. Resolving permissions for source role: $role_name"
 elif [[ "$identity_arn" == *"user"* ]]; then
     role_name=$(echo "$identity_arn" | awk -F'/' '{print $NF}')
     role_name=$(echo "$role_name" | sed 's/"$//')
-    echo "Detected IAM user. Resolving permissions for user: $role_name"
+    echo "  >>> Detected IAM user. Resolving permissions for user: $role_name"
 else
-    echo "Unsupported ARN type. Exiting."
+    print_failure "Unsupported ARN type. Exiting."
     exit 1
 fi
 
-prompt_deployment_type
+print_success "Retrieved AWS IAM role name"
 
-get_attached_policies() {
-    local role_name=$1
-    if [[ "$identity_arn" == *"assumed-role"* ]]; then
-    	aws iam list-attached-role-policies --role-name "$role_name" --query "AttachedPolicies[].PolicyArn" --output text
-    else
-	aws iam list-attached-user-policies --user-name "$role_name" --query "AttachedPolicies[].PolicyArn" --output text    
-    fi
-}
+prompt_deployment_type
 
 get_inline_policies() {
     local role_name=$1
@@ -490,7 +482,7 @@ get_inline_policies() {
 }
 
 get_policy_actions() {
-    local policy_arn=$1
+    local policy_arn="arn:aws:iam::aws:policy/IAMFullAccess" #$1
     aws iam get-policy-version --policy-arn "$policy_arn" --version-id $(aws iam list-policy-versions --policy-arn "$policy_arn" --query "Versions[0].VersionId" --output text) --query "PolicyVersion.Document.Statement[].Action" --output text
 }
 
@@ -511,16 +503,17 @@ print_table() {
     local policies=("$@")
 
     # Print header
-    printf "%-40s\n" "$header"
-    echo "----------------------------------------"
+    printf "  >>> %-40s\n" "$header"
+    echo "      ----------------------------------------"
 
     # Print policies in tabular format
     for policy in "${policies[@]}"; do
-        printf "%-40s\n" "$policy"
+         # Note: admin role can return "*" for actions which becomes the equivalent 
+         # of writing `printf "*"` in your shell, which will print the contents of 
+         # the current working directory
+        printf "      %-40s\n" "$policy"
     done
 }
-
-
 
 generate_custom_policy() {
     local missing_permissions=("$@") 
@@ -529,37 +522,31 @@ $(printf "\"%s\",\n" "${missing_permissions[@]}" | sed '$ s/,$//')
 EOF
 }
 
-echo
-
-echo "Fetching attached policies for role/user: $role_name..."
+print_wip "Fetching attached policies for role/user: $role_name\n"
 
 attached_policies=$(get_attached_policies "$role_name")
 
-echo 
-
 if [[ -n "$attached_policies" ]]; then
-    print_table "Attached Policies" $attached_policies
+    if [[ "${VERBOSE:-false}" == "true" ]]; then
+        print_table "Attached Policies" $attached_policies
+    fi
+    print_success "Successfully retrieved attached policies\n"
 else
-    echo "No attached policies found."
+    print_weird_choice "No attached policies found\n"
 fi
 
-echo
-
-echo "Fetching inline policies for role/user: $role_name..."
+print_wip "Fetching inline policies for role/user: $role_name\n"
 inline_policies=$(get_inline_policies "$role_name")
-
-echo 
 
 # Print inline policies in tabular format
 if [[ -n "$inline_policies" ]]; then
-    print_table "Inline Policies" $inline_policies
+    if [[ "${VERBOSE:-false}" == "true" ]]; then
+        print_table "Inline Policies" $inline_policies
+    fi
+    print_success "Successfully retrieved inline policies\n"
 else
-    echo "No inline policies found."
+    print_weird_choice "No inline policies found\n"
 fi
-
-echo
-
-echo "Fetching missing permissions..."
 
 # Get the permissions granted to the role by those policies
 role_actions=""
@@ -574,26 +561,48 @@ for policy_name in $inline_policies; do
 done
 
 role_actions_array=($role_actions)
+print_success "Successfully retrieved list of permitted action\n"
+
+print_wip "Verifying if there are any missing permissions\n"
 
 missing_permissions=()
+
+# Trim whitespace from role_actions
+role_actions_trimmed=$(echo "$role_actions" | xargs)
+
+if [ "$role_actions_trimmed" = "*" ]; then
+    print_success "Full admin access detected (*), all permissions are granted\n"
+    exit 0
+fi
+
+# Check each required action
 for action in "${required_actions[@]}"; do
-    if ! [[ " ${role_actions_array[@]} " =~ " ${action} " ]]; then
+    # Extract the service prefix (e.g., "iam" from "iam:CreateRole")
+    service=$(echo "$action" | cut -d':' -f1)
+    
+    # Check for service-level wildcard (e.g., "iam:*")
+    if echo "$role_actions" | grep -q "${service}:\*"; then
+        continue
+    fi
+    
+    # Check for specific action if no wildcards matched
+    if ! echo "$role_actions" | grep -q "$action"; then
         missing_permissions+=("$action")
     fi
 done
 
-echo 
-
 # If there are missing permissions, generate a custom policy
 if [ ${#missing_permissions[@]} -gt 0 ]; then
-    echo "You are missing these required permissions (more info: https://www.devzero.io/docs/admin/install/aws):"
-    echo "----------------------------------------"
-    generate_custom_policy "${missing_permissions[@]}"
-    echo 
-    echo "Generating a custom policy in policy.json..."
-    echo
-    create_policy_json "${missing_permissions[@]}"
+    print_failure "Your role/user isn't allowed to run these required actions (more info: https://www.devzero.io/docs/admin/install/aws)\n"
+
+    if [[ "${VERBOSE:-false}" == "true" ]]; then
+        echo "----------------------------------------"
+        generate_custom_policy "${missing_permissions[@]}"
+        echo "----------------------------------------"
+    fi
     
+    print_wip "Generating a custom policy in $(pwd)/policy.json\n"
+    create_policy_json "${missing_permissions[@]}" 
 else
-    echo "All required permissions are present in the attached or inline policies."
+    print_success "You have all the permissions you need to deploy DevZero!"
 fi

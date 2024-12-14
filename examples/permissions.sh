@@ -373,7 +373,11 @@ extract_role_name() {
 
 get_attached_policies() {
     local role_name=$1
-    aws iam list-attached-role-policies --role-name "$role_name" --query "AttachedPolicies[].PolicyArn" --output text
+    if [[ "$identity_arn" == *"assumed-role"* ]]; then
+    	aws iam list-attached-role-policies --role-name "$role_name" --query "AttachedPolicies[].PolicyArn" --output text
+    else
+	aws iam list-attached-user-policies --user-name "$role_name" --query "AttachedPolicies[].PolicyArn" --output text    
+    fi
 }
 
 get_inline_policies() {
@@ -606,3 +610,4 @@ if [ ${#missing_permissions[@]} -gt 0 ]; then
 else
     print_success "You have all the permissions you need to deploy DevZero!"
 fi
+

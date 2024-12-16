@@ -205,11 +205,9 @@ resource "aws_kms_key" "vault-auto-unseal" {
   deletion_window_in_days = 10
 }
 
-resource "aws_kms_alias" "vault_auto_unseal" {
-  name          = "alias/vault-auto-unseal-${random_string.alias_suffix.result}"
-  target_key_id = aws_kms_key.vault_auto_unseal.key_id
-
-  depends_on = [aws_kms_key.vault_auto_unseal]
+resource "aws_kms_alias" "vault-auto-unseal" {
+  name          = "alias/vault-auto-unseal"
+  target_key_id = aws_kms_key.vault-auto-unseal.key_id
 }
 
 resource "aws_kms_key_policy" "vault-auto-unseal" {

@@ -1,9 +1,7 @@
 #!/bin/bash
 
-# Namespace to check
 NAMESPACE="devzero"
 
-# Function to fetch logs and description of a pod
 fetch_pod_details() {
     local pod_name="$1"
     local namespace="$2"
@@ -21,13 +19,11 @@ check_service_reachability() {
     local service_port="$3"
 
     echo "Forwarding port for service: $service_name..."
-    # Start port-forward in the background
     kubectl port-forward svc/"$service_name" "$service_port:$service_port" -n "$namespace" &> /tmp/port-forward.log &
     local port_forward_pid=$!
 
-    sleep 5  # Wait longer for port-forward to stabilize
+    sleep 5
 
-    # Check connectivity
     curl -s --connect-timeout 5 "http://localhost:$service_port" &> /dev/null
     if [[ $? -eq 0 ]]; then
         ((reachable_count++))
@@ -35,16 +31,9 @@ check_service_reachability() {
         ((not_reachable_count++))
     fi
 
-    # Kill the port-forward process
     kill $port_forward_pid &> /dev/null
     wait $port_forward_pid 2>/dev/null
 }
-
-# Initialize counters
-reachable_count=0
-not_reachable_count=0
-
-
 
 check_ingresses() {
     echo -e "\nChecking ingresses in namespace: $NAMESPACE"
@@ -70,7 +59,6 @@ check_ingresses() {
     done <<< "$INGRESS"
 }
 
-# Get all pods and their statuses in the namespace
 echo "Checking pods in namespace: $NAMESPACE"
 PODS=$(kubectl get pods -n "$NAMESPACE" --no-headers)
 
@@ -79,7 +67,6 @@ if [[ -z "$PODS" ]]; then
     exit 0
 fi
 
-# Initialize counters for pod statuses
 COUNT_RUNNING=0
 COUNT_PENDING=0
 COUNT_SUCCEEDED=0
@@ -129,6 +116,9 @@ check_ingresses
 
 echo
 
+reachable_count=0
+not_reachable_count=0
+
 echo "Checking services in namespace: $NAMESPACE"
 SERVICES=$(kubectl get svc -n "$NAMESPACE" --no-headers)
 
@@ -137,12 +127,10 @@ if [[ -z "$SERVICES" ]]; then
     exit 0
 fi
 
-# Iterate over each service
 while read -r SVC_LINE; do
     SVC_NAME=$(echo "$SVC_LINE" | awk '{print $1}')
     SVC_PORTS=$(echo "$SVC_LINE" | awk '{print $5}')
 
-    # Extract the first port
     SVC_PORT=$(echo "$SVC_PORTS" | sed 's|/.*||' | awk -F, '{print $1}')
 
     if [[ -n "$SVC_PORT" ]]; then
@@ -152,7 +140,6 @@ while read -r SVC_LINE; do
     fi
 done <<< "$SERVICES"
 
-# Print the summary
-echo "Summary:"
+echo "Summary of services:"
 echo "Reachable services: $reachable_count"
 echo "Not reachable services: $not_reachable_count"

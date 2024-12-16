@@ -9,6 +9,35 @@ provider "google" {
 }
 
 ################################################################################
+# Enable required APIs
+################################################################################
+
+resource "google_project_service" "cloud_kms_api" {
+  project = var.project_id
+  service = "cloudkms.googleapis.com"
+  disable_on_destroy = false
+}
+
+resource "google_project_service" "compute_api" {
+  project = var.project_id
+  service = "compute.googleapis.com"
+  disable_on_destroy = false
+}
+
+resource "google_project_service" "container_api" {
+  project = var.project_id
+  service = "container.googleapis.com"
+  disable_on_destroy = false
+}
+
+resource "google_project_service" "filestore_api" {
+  project = var.project_id
+  service = "file.googleapis.com"
+  disable_on_destroy = false
+}
+
+
+################################################################################
 # Common resources
 ################################################################################
 
@@ -66,6 +95,10 @@ module "gke" {
   depends_on = [ module.filestore ]
 }
 
+################################################################################
+# Filestore
+################################################################################
+
 module "filestore" {
   source = "../../../modules/gcp/filestore"
 
@@ -78,4 +111,69 @@ module "filestore" {
   file_share_name = var.file_share_name
   capacity_gb     = var.capacity_gb
   labels          = var.filestore_labels
+}
+
+################################################################################
+# Vault
+################################################################################
+
+# Service Account for Vault
+resource "google_service_account" "vault_service_account" {
+  account_id   = "vault-service-account"
+  display_name = "Vault Service Account"
+}
+
+# Grant 'roles/cloudkms.cryptoKeyEncrypterDecrypter' to the Vault Service Account
+resource "google_project_iam_binding" "vault_kms_binding" {
+  project = var.project_id
+  role    = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+
+  members = [
+    "serviceAccount:${google_service_account.vault_service_account.email}",
+  ]
+}
+
+# Grant 'roles/cloudkms.admin' to the Vault Admin User
+resource "google_project_iam_binding" "vault_admin_binding" {
+  project = var.project_id
+  role    = "roles/cloudkms.admin"
+
+  members = [
+    "user:${var.vault_admin_user}",
+  ]
+}
+
+# Create a KeyRing for Vault
+resource "google_kms_key_ring" "vault_key_ring" {
+  name     = "vault-key-ring-2"
+  location = "global"
+}
+
+# Create a CryptoKey for Vault Auto-Unseal
+resource "google_kms_crypto_key" "vault_crypto_key" {
+  name            = "vault-auto-unseal-2"
+  key_ring        = google_kms_key_ring.vault_key_ring.id
+  purpose         = "ENCRYPT_DECRYPT"
+  rotation_period = "2592000s" # 30 days
+  depends_on = [google_project_service.cloud_kms_api]
+}
+
+# Bind the Vault Service Account to the CryptoKey with IAM Permissions
+resource "google_kms_crypto_key_iam_binding" "vault_crypto_key_binding" {
+  crypto_key_id = google_kms_crypto_key.vault_crypto_key.id
+  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+  depends_on = [google_project_service.cloud_kms_api]
+  members = [
+    "serviceAccount:${google_service_account.vault_service_account.email}",
+  ]
+}
+
+# Bind the Vault Admin User to the CryptoKey with Admin Permissions
+resource "google_kms_crypto_key_iam_binding" "vault_crypto_key_admin_binding" {
+  crypto_key_id = google_kms_crypto_key.vault_crypto_key.id
+  role          = "roles/cloudkms.admin"
+
+  members = [
+    "user:${var.vault_admin_user}",
+  ]
 }

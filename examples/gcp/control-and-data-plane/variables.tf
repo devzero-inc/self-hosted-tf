@@ -216,3 +216,10 @@ variable "filestore_labels" {
   type        = map(string)
   default     = {}
 }
+
+
+#Vault
+variable "vault_admin_user" {
+  description = "Email of the Vault Admin User"
+  type        = string
+}

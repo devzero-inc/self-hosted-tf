@@ -64,6 +64,8 @@ resource "aws_launch_template" "ubuntu" {
   EOT
   )
 
+  vpc_security_group_ids = var.security_group_ids
+
   block_device_mappings {
     device_name = "/dev/sda1"
 

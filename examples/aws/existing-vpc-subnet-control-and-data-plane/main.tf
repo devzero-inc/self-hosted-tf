@@ -91,6 +91,10 @@ resource "aws_route_table" "private" {
     cidr_block = "0.0.0.0/0"
     gateway_id = data.aws_internet_gateway.existing_igw.id
   }
+
+  tags = {
+    Name = "private-route-table"
+  }
 }
 
 # Route table association for private subnets
@@ -98,7 +102,9 @@ resource "aws_route_table_association" "private" {
   count = var.enable_private_route_table ? length(var.vpc_private_subnets) : 0
 
   subnet_id      = var.vpc_private_subnets[count.index]
-  route_table_id = aws_route_table.private.id
+  route_table_id = aws_route_table.private[0].id
+
+  depends_on = [aws_route_table.private]
 }
 
 ################################################################################

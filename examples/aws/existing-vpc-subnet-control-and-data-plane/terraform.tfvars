@@ -7,7 +7,7 @@ max_node_size        = 4
 environment          = "devzero-final"
 
 # VPC
-vpc_private_subnets    = ["subnet-0f41f815bcb821005", "subnet-0d01b20f7de67cbad"]
-vpc_public_subnets     = ["subnet-0f41f815bcb821005", "subnet-0d01b20f7de67cbad"]
+vpc_private_subnets    = ["subnet-04f7a638886889206", "subnet-0010bc7d01d9959a9"]
+vpc_public_subnets     = ["subnet-0b601ab1718e03b31", "subnet-0954665d713db00f1"]
 vpc_availability_zones = ["us-west-2a", "us-west-2b"]
-vpc_id                 = "vpc-0a0ca07beae2d8ed5"
+vpc_id                 = "vpc-00e8585335207de88"

@@ -53,8 +53,14 @@ data "aws_internet_gateway" "existing_igw" {
 }
 
 # Subnets
-data "aws_subnet" "existing_subnets" {
+data "aws_subnet" "existing_private_subnets" {
   for_each = toset(var.vpc_private_subnets)
+
+  id = each.value
+}
+
+data "aws_subnet" "existing_public_subnets" {
+  for_each = toset(var.vpc_public_subnets)
 
   id = each.value
 }
@@ -70,7 +76,7 @@ resource "aws_security_group" "private_subnets" {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = [for subnet in data.aws_subnet.existing_subnets : subnet.cidr_block]
+    cidr_blocks = [for subnet in data.aws_subnet.existing_private_subnets : subnet.cidr_block]
   }
 
   egress {
@@ -81,30 +87,36 @@ resource "aws_security_group" "private_subnets" {
   }
 }
 
-# Route table for private subnets with Internet Gateway route
-resource "aws_route_table" "private" {
-  count = var.enable_private_route_table ? 1 : 0
+resource "aws_security_group" "public_subnets" {
+  name        = "${random_string.this.result}-eks-lb-sg"
+  description = "Security group for EKS ingress load balancers"
+  vpc_id      = data.aws_vpc.existing_vpc.id
 
-  vpc_id = data.aws_vpc.existing_vpc.id
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = data.aws_internet_gateway.existing_igw.id
+  # Ingress Rules: Allow public HTTP/HTTPS traffic
+  ingress {
+    description = "Allow HTTP traffic"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = {
-    Name = "private-route-table"
+  ingress {
+    description = "Allow HTTPS traffic"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
-}
 
-# Route table association for private subnets
-resource "aws_route_table_association" "private" {
-  count = var.enable_private_route_table ? length(var.vpc_private_subnets) : 0
-
-  subnet_id      = var.vpc_private_subnets[count.index]
-  route_table_id = aws_route_table.private[0].id
-
-  depends_on = [aws_route_table.private]
+  # Egress Rules: Allow all outbound traffic
+  egress {
+    description = "Allow all outbound traffic"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = var.public_subnets_egress
+  }
 }
 
 ################################################################################
@@ -123,7 +135,8 @@ module "eks" {
   region               = var.region
   environment          = var.environment
   security_group_ids   = [aws_security_group.private_subnets.id]
-  subnet_ids           = var.vpc_private_subnets
+  private_subnet_ids   = var.vpc_private_subnets
+  public_subnet_ids    = var.vpc_public_subnets
   desired_node_size    = var.desired_node_size
   max_node_size        = var.max_node_size
   min_node_size        = var.desired_node_size

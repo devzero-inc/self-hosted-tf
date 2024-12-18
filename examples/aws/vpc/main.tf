@@ -32,5 +32,7 @@ module "vpc" {
   prefix             = random_string.this.result
   availability_zones = var.availability_zones
   cidr               = var.cidr
+  private_cidr       = var.private_cidr
   private_subnets    = var.private_subnets
+  public_subnets     = var.public_subnets
 }

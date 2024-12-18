@@ -94,7 +94,7 @@ resource "aws_eks_cluster" "this" {
 
   vpc_config {
     security_group_ids      = var.security_group_ids
-    subnet_ids              = var.subnet_ids
+    subnet_ids              = concat(var.public_subnet_ids, var.private_subnet_ids)
     endpoint_private_access = true
     endpoint_public_access  = true
   }
@@ -159,7 +159,7 @@ resource "aws_eks_node_group" "node" {
   cluster_name    = aws_eks_cluster.this.name
   node_group_name = "${aws_eks_cluster.this.name}-ng"
   node_role_arn   = aws_iam_role.eks-node.arn
-  subnet_ids      = var.subnet_ids
+  subnet_ids      = var.private_subnet_ids
   instance_types  = [var.worker_instance_type]
   ami_type        = "CUSTOM"
 

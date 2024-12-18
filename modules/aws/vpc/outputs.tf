@@ -73,3 +73,48 @@ output "private_security_group" {
   description = "List of IDs of private security groups"
   value       = aws_security_group.private_subnets.id
 }
+
+output "public_subnets" {
+  description = "List of IDs of public subnets"
+  value       = aws_subnet.public_subnets.*.id
+}
+
+output "public_subnet_arns" {
+  description = "List of ARNs of public subnets"
+  value       = aws_subnet.public_subnets.*.arn
+}
+
+output "public_subnets_cidr_blocks" {
+  description = "List of CIDR blocks of public subnets"
+  value       = aws_subnet.public_subnets.*.cidr_block
+}
+
+output "public_security_group_id" {
+  description = "The ID of the security group for public subnets"
+  value       = aws_security_group.public_subnets.id
+}
+
+output "nat_gateway_ids" {
+  description = "List of IDs of NAT Gateways"
+  value       = aws_nat_gateway.nat_gw.*.id
+}
+
+output "nat_gateway_eips" {
+  description = "List of Elastic IPs associated with NAT Gateways"
+  value       = aws_eip.nat.*.public_ip
+}
+
+output "public_route_table_id" {
+  description = "The ID of the route table for public subnets"
+  value       = aws_route_table.public.id
+}
+
+output "private_route_table_id" {
+  description = "The ID of the route table for private subnets"
+  value       = aws_route_table.private.id
+}
+
+output "availability_zones" {
+  description = "The availability zones used in this VPC"
+  value       = var.availability_zones
+}

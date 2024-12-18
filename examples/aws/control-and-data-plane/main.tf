@@ -52,7 +52,9 @@ module "vpc" {
   prefix             = random_string.this.result
   availability_zones = var.availability_zones
   cidr               = var.cidr
+  private_cidr       = var.private_cidr
   private_subnets    = var.private_subnets
+  public_subnets     = var.public_subnets
 }
 
 ################################################################################
@@ -72,7 +74,8 @@ module "eks" {
   region               = var.region
   environment          = var.environment
   security_group_ids   = [module.vpc.private_security_group]
-  subnet_ids           = module.vpc.private_subnets
+  private_subnet_ids   = module.vpc.private_subnets
+  public_subnet_ids    = module.vpc.public_subnets
   desired_node_size    = var.desired_node_size
   max_node_size        = var.max_node_size
   min_node_size        = var.desired_node_size

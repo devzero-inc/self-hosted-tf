@@ -40,10 +40,14 @@ variable "security_group_ids" {
   default     = []
 }
 
-variable "subnet_ids" {
-  description = "Subnets"
+variable "public_subnet_ids" {
+  description = "List of public subnet IDs for load balancers"
   type        = list(string)
-  default     = []
+}
+
+variable "private_subnet_ids" {
+  description = "List of private subnet IDs for worker nodes"
+  type        = list(string)
 }
 
 variable "common_tags" {

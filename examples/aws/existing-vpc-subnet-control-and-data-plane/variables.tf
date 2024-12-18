@@ -42,6 +42,11 @@ variable "vpc_private_subnets" {
   type        = list(string)
 }
 
+variable "vpc_public_subnets" {
+  description = "Public subnet ids to be used for the EKS cluster"
+  type        = list(string)
+}
+
 variable "vpc_availability_zones" {
   description = "Availability zones"
   type        = list(string)
@@ -53,13 +58,13 @@ variable "private_subnets_egress" {
   default     = ["0.0.0.0/0"]
 }
 
+variable "public_subnets_egress" {
+  description = "Public eggress subnets"
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+}
+
 variable "vpc_id" {
   description = "The existing VPC ID"
   type        = string
-}
-
-variable "enable_private_route_table" {
-  description = "Enable or disable the creation of private route table and associations"
-  type        = bool
-  default     = true
 }

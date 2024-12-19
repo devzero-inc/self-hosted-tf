@@ -70,7 +70,7 @@ module "gke" {
 
   project_id = var.project_id
   # Cluster Name should not include (-, special char, and numbers)
-  cluster_name = var.cluster_name
+  cluster_name = "gke${random_string.this.result}"
   region       = var.region
   network      = module.vpc.vpc_name
   subnetwork   = module.vpc.vpc_subnets[0]

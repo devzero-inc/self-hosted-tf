@@ -396,27 +396,39 @@ get_inline_policy_actions() {
 create_policy_json() {
     local output_file="policy.json"
     local missing_permissions=("$@")
-    
-    # Start the JSON file
+    declare -A service_action_map
+
+    for action in "${missing_permissions[@]}"; do
+        service_prefix=$(echo "$action" | cut -d':' -f1)
+        if [[ -z "${service_action_map[$service_prefix]}" ]]; then
+            service_action_map[$service_prefix]="$action"
+        else
+            service_action_map[$service_prefix]="${service_action_map[$service_prefix]},$action"
+        fi
+    done
+
     echo "{" > $output_file
     echo "  \"Version\": \"2012-10-17\"," >> $output_file
     echo "  \"Statement\": [" >> $output_file
-    echo "    {" >> $output_file
-    echo "      \"Effect\": \"Allow\"," >> $output_file
-    echo "      \"Action\": [" >> $output_file
-    
-    # Add all permissions
-    for action in "${missing_permissions[@]}"; do
-        echo "        \"$action\"," >> $output_file
+
+    for service_prefix in "${!service_action_map[@]}"; do
+        echo "    {" >> $output_file
+        echo "      \"Effect\": \"Allow\"," >> $output_file
+        echo "      \"Action\": [" >> $output_file
+        IFS=',' read -ra actions <<< "${service_action_map[$service_prefix]}"
+        for action in "${actions[@]}"; do
+            echo "        \"$action\"," >> $output_file
+        done
+        sed -i '$ s/,$//' $output_file  # Remove trailing comma
+        echo "      ]," >> $output_file
+        echo "      \"Resource\": \"*\"" >> $output_file
+        echo "    }," >> $output_file
     done
-    
-    # Remove the trailing comma from the last action
-    sed -i '' -e '$ s/,$//' $output_file
-    
-    # Close the JSON structure
-    echo "      ]," >> $output_file
-    echo "      \"Resource\": \"*\"" >> $output_file
-    echo "    }" >> $output_file
+
+  
+    sed -i '$ s/,$//' $output_file
+
+  
     echo "  ]" >> $output_file
     echo "}" >> $output_file
 

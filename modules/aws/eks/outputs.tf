@@ -43,3 +43,7 @@ output "provider_url" {
 output "provider_id" {
   value = aws_iam_openid_connect_provider.cluster.arn
 }
+
+output "cluster_name" {
+  value = aws_eks_cluster.this.name
+}

@@ -96,17 +96,11 @@ resource "aws_efs_file_system" "efs" {
   creation_token = var.cluster_name
 }
 
-resource "aws_efs_mount_target" "efs-mount-01" {
-  file_system_id  = aws_efs_file_system.efs.id
-  subnet_id       = var.app_subnet_id_01
-  security_groups = var.security_group_ids
+resource "aws_efs_mount_target" "efs-mount" {
+  for_each = var.subnet_ids
 
-  depends_on = [aws_efs_file_system.efs]
-}
-
-resource "aws_efs_mount_target" "efs-mount-02" {
   file_system_id  = aws_efs_file_system.efs.id
-  subnet_id       = var.app_subnet_id_02
+  subnet_id       = each.value
   security_groups = var.security_group_ids
 
   depends_on = [aws_efs_file_system.efs]

@@ -237,7 +237,7 @@ module "efs" {
   aws_eks_cluster_auth_token = module.eks.aws_eks_cluster_auth_token
   provider_url               = module.eks.provider_url
 
-  security_group_ids = [module.vpc.private_security_group]
+  security_group_ids = [module.vpc.default_security_group_id]
   app_subnet_id_01   = module.vpc.private_subnets[0]
   app_subnet_id_02   = module.vpc.private_subnets[1]
 

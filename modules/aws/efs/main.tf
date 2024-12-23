@@ -6,7 +6,7 @@ module "iam_assumable_role_admin" {
   version = "3.6.0"
 
   create_role      = true
-  role_name        = "${var.environment}-efs-driver"
+  role_name        = "${var.name}-efs-driver"
   provider_url     = var.provider_url
   role_policy_arns = [aws_iam_policy.efs_policy.arn]
 
@@ -22,7 +22,7 @@ module "iam_assumable_role_admin" {
 }
 
 resource "aws_iam_policy" "efs_policy" {
-  name        = "${var.environment}-efs-policy"
+  name        = "${var.name}-efs-policy"
   description = "EKS cluster policy for EFS"
 
   policy = <<EOF

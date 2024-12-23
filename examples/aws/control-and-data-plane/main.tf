@@ -228,6 +228,8 @@ module "efs" {
 
   efs_enabled = true
 
+  name = "${module.eks.name}-efs"
+
   environment = var.environment
 
   efs_pv_name            = "${terraform.workspace}-${random_string.this.result}-efs-pv"

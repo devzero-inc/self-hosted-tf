@@ -1,3 +1,11 @@
+locals {
+  azs = (var.availability_zones_count > 0) ? slice(data.aws_availability_zones.available.names, 0, min(var.availability_zones_count, length(data.aws_availability_zones.available.names))) : var.availability_zones
+  calculated_public_subnets = length(var.public_subnets) > 0 ? var.public_subnets : [for k, v in local.azs : cidrsubnet(var.cidr, 4, k)]
+  calculated_private_subnets = length(var.private_subnets) > 0 ? var.private_subnets : [for k, v in local.azs : cidrsubnet(var.cidr, 4, k + 6)]
+}
+
+data "aws_availability_zones" "available" {}
+
 ################################################################################
 # Providers
 ################################################################################
@@ -36,23 +44,64 @@ resource "random_string" "this" {
   upper   = false
 }
 
+resource "null_resource" "validations" {
+  lifecycle {
+    precondition {
+      condition     = !(var.availability_zones_count == 0 && length(var.availability_zones) == 0)
+      error_message = "The variable availability_zones_count must be set if availability_zones is not set"
+    }
+
+    precondition {
+      condition     = !(var.create_vpc == false && length(var.private_subnets) == 0)
+      error_message = "The variable private_subnets must be set if create_vpc is false"
+    }
+
+    precondition {
+      condition     = !(var.create_vpc == false && length(var.public_subnets) == 0)
+      error_message = "The variable public_subnets must be set if create_vpc is false"
+    }
+  }
+}
+
 ################################################################################
 # VPC
 ################################################################################
-
 module "vpc" {
-  providers = {
-    aws = aws
-  }
+  depends_on = [
+    null_resource.validations
+  ]
+  create_vpc = var.create_vpc
 
-  source = "../../../modules/aws/vpc"
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "5.17.0"
 
-  region             = var.region
-  vpc_name           = "${terraform.workspace}-${random_string.this.result}-vpc"
-  prefix             = random_string.this.result
-  availability_zones = var.availability_zones
-  cidr               = var.cidr
-  private_subnets    = var.private_subnets
+  name = "devzero-${terraform.workspace}-${random_string.this.result}-vpc"
+  cidr = var.cidr
+
+  azs             = local.azs
+  public_subnets  = local.calculated_public_subnets
+  private_subnets = local.calculated_private_subnets
+
+
+  enable_nat_gateway = true
+  single_nat_gateway = true
+
+  default_security_group_egress = [
+    {
+      from_port = 0
+      to_port   = 0
+      protocol  = "-1"
+      cidr_blocks = "0.0.0.0/0"
+    }
+  ]
+  default_security_group_ingress = [
+    {
+      from_port = 0
+      to_port   = 0
+      protocol  = "-1"
+      cidr_blocks = join(",", local.calculated_private_subnets)
+    }
+  ]
 }
 
 ################################################################################
@@ -71,7 +120,7 @@ module "eks" {
 
   region               = var.region
   environment          = var.environment
-  security_group_ids   = [module.vpc.private_security_group]
+  security_group_ids   = [module.vpc.default_security_group_id]
   subnet_ids           = module.vpc.private_subnets
   desired_node_size    = var.desired_node_size
   max_node_size        = var.max_node_size

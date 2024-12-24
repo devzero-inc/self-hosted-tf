@@ -382,11 +382,6 @@ get_attached_policies() {
     fi
 }
 
-get_inline_policies() {
-    local role_name=$1
-    aws iam list-role-policies --role-name "$role_name" --query "PolicyNames[]" --output text
-}
-
 get_inline_policy_actions() {
     local role_name=$1
     local policy_name=$2
@@ -566,7 +561,6 @@ else
     print_weird_choice "No inline policies found\n"
 fi
 
-# Get the permissions granted to the role by those policies
 role_actions=""
 for policy_arn in $attached_policies; do
     policy_actions=$(get_policy_actions "$policy_arn")
@@ -578,38 +572,27 @@ for policy_name in $inline_policies; do
     role_actions+="$inline_policy_actions "
 done
 
-role_actions_array=($role_actions)
 print_success "Successfully retrieved list of permitted action\n"
+
+if echo "$role_actions" | grep -Eq '(^|[[:space:]])\*($|[[:space:]])'; then
+    print_success "Full admin access (*) detected in actions, all permissions are granted!\n"
+    exit 0
+fi
 
 print_wip "Verifying if there are any missing permissions\n"
 
 missing_permissions=()
 
-# Trim whitespace from role_actions
-role_actions_trimmed=$(echo "$role_actions" | xargs)
-
-if [ "$role_actions_trimmed" = "*" ]; then
-    print_success "Full admin access detected (*), all permissions are granted\n"
-    exit 0
-fi
-
-# Check each required action
 for action in "${required_actions[@]}"; do
-    # Extract the service prefix (e.g., "iam" from "iam:CreateRole")
     service=$(echo "$action" | cut -d':' -f1)
-    
-    # Check for service-level wildcard (e.g., "iam:*")
     if echo "$role_actions" | grep -q "${service}:\*"; then
         continue
     fi
-    
-    # Check for specific action if no wildcards matched
     if ! echo "$role_actions" | grep -q "$action"; then
         missing_permissions+=("$action")
     fi
 done
 
-# If there are missing permissions, generate a custom policy
 if [ ${#missing_permissions[@]} -gt 0 ]; then
     print_failure "Your role/user isn't allowed to run these required actions (more info: https://www.devzero.io/docs/admin/install/aws)\n"
 
@@ -624,4 +607,5 @@ if [ ${#missing_permissions[@]} -gt 0 ]; then
 else
     print_success "You have all the permissions you need to deploy DevZero!"
 fi
+
 

@@ -143,7 +143,7 @@ module "eks" {
 
   source = "../../../modules/aws/eks"
 
-  cluster_name = "${terraform.workspace}-${random_string.this.result}"
+  cluster_name = "devzero-${terraform.workspace}-${random_string.this.result}"
 
   region               = var.region
   environment          = var.environment

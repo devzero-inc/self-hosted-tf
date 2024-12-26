@@ -305,3 +305,22 @@ module "efs" {
     }
   }
 }
+
+resource "kubernetes_storage_class" "efs_etcd" {
+  metadata {
+    name = "efs-etcd"
+  }
+  storage_provisioner = "efs.csi.aws.com"
+  reclaim_policy      = "Delete"
+  parameters = {
+    basePath              = "/etcd"
+    directoryPerms        = "700"
+    ensureUniqueDirectory = "true"
+    fileSystemId          = module.efs.id
+    gidRangeEnd           = "2000"
+    gidRangeStart         = "1000"
+    provisioningMode      = "efs-ap"
+    reuseAccessPoint      = "false"
+    subPathPattern        = "$${.PVC.name}"
+  }
+}

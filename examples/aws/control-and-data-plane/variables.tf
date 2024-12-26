@@ -1,42 +1,7 @@
-#EKS
-variable "region" {
-  type        = string
-  description = "AWS region"
-}
-
-variable "environment" {
-  type        = string
-  description = "Cluster environment"
-}
-
-variable "worker_instance_type" {
-  type        = string
-  description = "Node instance type"
-}
-
-variable "desired_node_size" {
-  type        = number
-  description = "Desired node size"
-}
-
-variable "max_node_size" {
-  type        = number
-  description = "Max node size"
-}
-
-variable "subnet_ids" {
-  description = "Subnets"
-  type        = list(string)
-  default     = []
-}
-
-variable "security_group_ids" {
-  description = "VPC security groups to allow connection from/to cluster"
-  type        = list(string)
-  default     = []
-}
-
+################################################################################
 # VPC
+################################################################################
+
 variable "create_vpc" {
   description = "Controls if VPC should be created (it affects almost all resources)"
   type        = bool
@@ -90,3 +55,54 @@ variable "private_subnet_ids" {
   }
 }
 
+
+################################################################################
+# EKS
+################################################################################
+variable "region" {
+  type        = string
+  description = "AWS region"
+}
+
+variable "environment" {
+  type        = string
+  description = "Cluster environment"
+}
+
+variable "worker_instance_type" {
+  type        = string
+  description = "Node instance type"
+}
+
+variable "desired_node_size" {
+  type        = number
+  description = "Desired node size"
+}
+
+variable "max_node_size" {
+  type        = number
+  description = "Max node size"
+}
+
+variable "subnet_ids" {
+  description = "Subnets"
+  type        = list(string)
+  default     = []
+}
+
+variable "security_group_ids" {
+  description = "VPC security groups to allow connection from/to cluster"
+  type        = list(string)
+  default     = []
+}
+
+
+################################################################################
+# EKS Blueprints Addons
+################################################################################
+
+variable "enable_cluster_autoscaler" {
+  description = "Enable cluster autoscaler"
+  type = bool
+  default = false
+}

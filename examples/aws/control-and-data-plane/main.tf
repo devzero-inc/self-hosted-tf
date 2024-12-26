@@ -108,6 +108,8 @@ module "vpc" {
   private_subnets = local.calculated_private_subnets_cidrs
 
 
+  manage_default_network_acl = true
+
   enable_nat_gateway = true
   single_nat_gateway = true
 
@@ -298,8 +300,6 @@ resource "aws_kms_key_policy" "vault-auto-unseal" {
       {
         Action = [
           "kms:*",
-          #          "kms:Decrypt",
-          #          "kms:DescribeKey",
         ]
         Effect = "Allow"
         Principal = {

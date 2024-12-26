@@ -185,6 +185,8 @@ module "eks_blueprints_addons" {
   cluster_version   = module.eks.version
   oidc_provider_arn = module.eks.provider_id
 
+  observability_tag = null
+
   tags = {
     Terraform = "true"
   }

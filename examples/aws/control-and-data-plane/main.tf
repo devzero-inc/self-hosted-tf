@@ -216,9 +216,9 @@ resource "kubernetes_annotations" "gp2_default" {
   depends_on = [module.eks_blueprints_addons]
 }
 
-resource "kubernetes_storage_class" "ebs_csi_encrypted_gp3_storage_class" {
+resource "kubernetes_storage_class" "gp3_default" {
   metadata {
-    name = "ebs-csi-encrypted-gp3"
+    name = "gp3"
     annotations = {
       "storageclass.kubernetes.io/is-default-class" : "true"
     }

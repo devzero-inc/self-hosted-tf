@@ -222,6 +222,31 @@ module "eks_blueprints_addons" {
       most_recent = true
     }
   }
+
+  enable_cluster_autoscaler = var.enable_cluster_autoscaler
+  cluster_autoscaler = {
+    chart_version = "9.43.2"
+    atomic        = true
+    reset_values  = true
+    lint          = true
+    # https://github.com/kubernetes/autoscaler/tree/master/charts/cluster-autoscaler#values
+    values = [
+      yamlencode({
+        extraArgs = {
+          "max-graceful-termination-sec" : "1800" # 30 minutes
+        }
+        autoDiscovery = {
+          tags = [
+            "k8s.io/cluster-autoscaler/enabled=true",
+            "k8s.io/cluster-autoscaler/{{ .Values.autoDiscovery.clusterName }}"
+          ]
+        },
+        podAnnotations = {
+          "cluster-autoscaler.kubernetes.io/safe-to-evict" : "true",
+        }
+      })
+    ]
+  }
 }
 
 ################################################################################

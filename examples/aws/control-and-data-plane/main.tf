@@ -134,10 +134,9 @@ module "vpc" {
 ################################################################################
 # EKS
 ################################################################################
-data "aws_iam_roles" "sso_awsadministratoraccess" {
-  name_regex = "AWSReservedSSO_AWSAdministratorAccess.*"
-}
-
+# data "aws_iam_roles" "sso_awsadministratoraccess" {
+#   name_regex = "AWSReservedSSO_AWSAdministratorAccess.*"
+# }
 
 module "eks" {
   source = "../../../modules/aws/eks"

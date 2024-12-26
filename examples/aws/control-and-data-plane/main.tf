@@ -158,32 +158,31 @@ module "eks" {
 # Data source to get the AWS account ID
 data "aws_caller_identity" "current" {}
 
-# Construct the OIDC provider ARN using the cluster OIDC URL and the account ID
-locals {
-  oidc_provider_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/${replace(module.eks.cluster_oidc_issuer_url, "https://", "")}"
-}
 
-module "ebs_csi_irsa" {
-  source = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+################################################################################
+# EKS Blueprints Addons
+################################################################################
+module "ebs_csi_driver_irsa" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  version = "5.51.0"
 
-  role_name             = "${module.eks.name}-ebs-csi-irsa"
+  role_name_prefix = "${module.eks.cluster_name}-ebs-csi-driver-"
+
   attach_ebs_csi_policy = true
+  policy_name_prefix    = module.eks.cluster_name
 
   oidc_providers = {
     main = {
-      provider_arn               = local.oidc_provider_arn
+      provider_arn               = module.eks.provider_id
       namespace_service_accounts = ["kube-system:ebs-csi-controller-sa"]
     }
   }
 }
 
-################################################################################
-# EKS Blueprints Addons
-################################################################################
 
 module "eks_blueprints_addons" {
   source  = "aws-ia/eks-blueprints-addons/aws"
-  version = "~> 1.0"
+  version = "1.19.0"
 
   cluster_name      = module.eks.name
   cluster_endpoint  = module.eks.endpoint
@@ -192,8 +191,33 @@ module "eks_blueprints_addons" {
 
   observability_tag = null
 
-  tags = {
-    Terraform = "true"
+  eks_addons = {
+    eks-pod-identity-agent = {
+      most_recent = true
+    }
+    aws-ebs-csi-driver = {
+      most_recent              = true
+      service_account_role_arn = module.ebs_csi_driver_irsa.iam_role_arn
+      configuration_values = jsonencode({
+        controller = {
+          podAnnotations = {
+            "cluster-autoscaler.kubernetes.io/safe-to-evict" : "true"
+          }
+        }
+      })
+    }
+    coredns = {
+      most_recent = true
+    }
+    kube-proxy = {
+      most_recent = true
+    }
+    snapshot-controller = {
+      most_recent = true
+    }
+    aws-efs-csi-driver = {
+      most_recent = true
+    }
   }
 }
 
@@ -213,7 +237,9 @@ resource "kubernetes_annotations" "gp2_default" {
 
   force = true
 
-  depends_on = [module.eks_blueprints_addons]
+  depends_on = [
+    module.eks,
+  ]
 }
 
 resource "kubernetes_storage_class" "gp3_default" {
@@ -234,7 +260,9 @@ resource "kubernetes_storage_class" "gp3_default" {
     type      = "gp3"
   }
 
-  depends_on = [kubernetes_annotations.gp2_default]
+  depends_on = [
+    kubernetes_annotations.gp2_default,
+  ]
 }
 
 ################################################################################

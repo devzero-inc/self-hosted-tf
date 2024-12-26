@@ -4,6 +4,9 @@ locals {
   calculated_public_subnets_ids = length(var.public_subnet_ids) > 0 ? var.public_subnet_ids : module.vpc.public_subnets
   calculated_private_subnets_ids = length(var.private_subnet_ids) > 0 ? var.private_subnet_ids : module.vpc.private_subnets
   calculated_security_group_ids = length(var.security_group_ids) > 0 ? var.security_group_ids : [module.vpc.default_security_group_id]
+
+  calculated_public_subnets_cidrs = [for k, v in local.azs : cidrsubnet(var.cidr, 4, k)]
+  calculated_private_subnets_cidrs = [for k, v in local.azs : cidrsubnet(var.cidr, 4, k + 6)]
 }
 
 data "aws_availability_zones" "available" {}
@@ -101,8 +104,8 @@ module "vpc" {
   cidr = var.cidr
 
   azs             = local.azs
-  public_subnets  = [for k, v in local.azs : cidrsubnet(var.cidr, 4, k)]
-  private_subnets = [for k, v in local.azs : cidrsubnet(var.cidr, 4, k + 6)]
+  public_subnets  = local.calculated_public_subnets_cidrs
+  private_subnets = local.calculated_private_subnets_cidrs
 
 
   enable_nat_gateway = true
@@ -121,7 +124,7 @@ module "vpc" {
       from_port = 0
       to_port   = 0
       protocol  = "-1"
-      cidr_blocks = join(",", local.calculated_private_subnets_ids)
+      cidr_blocks = join(",", local.calculated_private_subnets_cidrs)
     }
   ]
 }

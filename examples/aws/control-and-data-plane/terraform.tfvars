@@ -15,7 +15,7 @@ cidr            = "10.0.0.0/16"
 
 # Existing VPC
 # create_vpc = false
-# vpc_id = "vpc-01b10841e8aa7ffe4"
-# public_subnet_ids = ["subnet-0e8a32d453c903bc0", "subnet-0078f932dcb7019ef"]
-# private_subnet_ids = ["subnet-0d90d150884db0e51", "subnet-022521c7e828f3afa"]
-# security_group_ids = ["sg-0c6852476f3a2a571"]
+# vpc_id = "MY_VPC_ID"
+# public_subnet_ids = ["MY_SUBNET_ID_1", "MY_SUBNET_ID_2"]
+# private_subnet_ids = ["MY_SUBNET_ID_3", "MY_SUBNET_ID_3"]
+# security_group_ids = ["MY_SECURITY_GROUP_ID"]

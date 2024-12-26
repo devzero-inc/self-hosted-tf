@@ -153,22 +153,23 @@ module "eks" {
   min_node_size        = var.desired_node_size
   worker_instance_type = var.worker_instance_type
 
-  access_entries      =  {
-    # One access entry with a policy associated
-    admins = {
-      kubernetes_groups = []
-      principal_arn     = one(data.aws_iam_roles.sso_awsadministratoraccess.arns)
-
-      policy_associations = {
-        admin = {
-          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
-          access_scope = {
-            type = "cluster"
-          }
-        }
-      }
-    }
-  }
+  # EKS access entries. Uncomment this block to add access entries to the EKS cluster
+  # access_entries      =  {
+  #   # Adds the AWSAdministratorAccess policy to the SSO user or other principal Role
+  #   admins = {
+  #     kubernetes_groups = []
+  #     # The role to get Admin access to this cluster
+  #     principal_arn     = one(data.aws_iam_roles.sso_awsadministratoraccess.arns)
+  #     policy_associations = {
+  #       admin = {
+  #         policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+  #         access_scope = {
+  #           type = "cluster"
+  #         }
+  #       }
+  #     }
+  #   }
+  # }
 }
 
 # Data source to get the AWS account ID
@@ -364,4 +365,8 @@ resource "kubernetes_storage_class" "efs_etcd" {
     reuseAccessPoint      = "false"
     subPathPattern        = "$${.PVC.name}"
   }
+
+  depends_on = [
+    module.eks,
+  ]
 }

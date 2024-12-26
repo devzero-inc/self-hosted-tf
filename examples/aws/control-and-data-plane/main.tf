@@ -209,6 +209,9 @@ module "eks_blueprints_addons" {
     coredns = {
       most_recent = true
     }
+    vpc-cni = {
+      most_recent = true
+    }
     kube-proxy = {
       most_recent = true
     }

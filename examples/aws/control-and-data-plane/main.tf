@@ -134,13 +134,12 @@ module "vpc" {
 ################################################################################
 # EKS
 ################################################################################
+data "aws_iam_roles" "sso_awsadministratoraccess" {
+  name_regex = "AWSReservedSSO_AWSAdministratorAccess.*"
+}
 
-# We call EKS module to ensure compatibility
+
 module "eks" {
-  providers = {
-    aws = aws
-  }
-
   source = "../../../modules/aws/eks"
 
   cluster_name = "devzero-${terraform.workspace}-${random_string.this.result}"
@@ -153,6 +152,23 @@ module "eks" {
   max_node_size        = var.max_node_size
   min_node_size        = var.desired_node_size
   worker_instance_type = var.worker_instance_type
+
+  access_entries      =  {
+    # One access entry with a policy associated
+    admins = {
+      kubernetes_groups = []
+      principal_arn     = one(data.aws_iam_roles.sso_awsadministratoraccess.arns)
+
+      policy_associations = {
+        admin = {
+          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+          access_scope = {
+            type = "cluster"
+          }
+        }
+      }
+    }
+  }
 }
 
 # Data source to get the AWS account ID

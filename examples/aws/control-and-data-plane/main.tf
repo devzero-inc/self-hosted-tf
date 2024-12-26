@@ -1,7 +1,12 @@
 locals {
   azs = (var.availability_zones_count > 0) ? slice(data.aws_availability_zones.available.names, 0, min(var.availability_zones_count, length(data.aws_availability_zones.available.names))) : var.availability_zones
-  calculated_public_subnets = length(var.public_subnets) > 0 ? var.public_subnets : [for k, v in local.azs : cidrsubnet(var.cidr, 4, k)]
-  calculated_private_subnets = length(var.private_subnets) > 0 ? var.private_subnets : [for k, v in local.azs : cidrsubnet(var.cidr, 4, k + 6)]
+
+  calculated_public_subnets_ids = length(var.public_subnet_ids) > 0 ? var.public_subnet_ids : module.vpc.public_subnets
+  calculated_private_subnets_ids = length(var.private_subnet_ids) > 0 ? var.private_subnet_ids : module.vpc.private_subnets
+  calculated_security_group_ids = length(var.security_group_ids) > 0 ? var.security_group_ids : [module.vpc.default_security_group_id]
+
+  calculated_public_subnets_cidrs = [for k, v in local.azs : cidrsubnet(var.cidr, 4, k)]
+  calculated_private_subnets_cidrs = [for k, v in local.azs : cidrsubnet(var.cidr, 4, k + 6)]
 }
 
 data "aws_availability_zones" "available" {}
@@ -52,18 +57,33 @@ resource "random_string" "this" {
 resource "null_resource" "validations" {
   lifecycle {
     precondition {
-      condition     = !(var.availability_zones_count == 0 && length(var.availability_zones) == 0)
+      condition     = !(var.create_vpc == true && var.availability_zones_count == 0 && length(var.availability_zones) == 0)
       error_message = "The variable availability_zones_count must be set if availability_zones is not set"
     }
 
     precondition {
-      condition     = !(var.create_vpc == false && length(var.private_subnets) == 0)
+      condition     = !(var.create_vpc == true && var.cidr == null)
+      error_message = "The variable cidr must be set if create_vpc is false. This is the cidr range used to create the VPC"
+    }
+
+    precondition {
+      condition     = !(var.create_vpc == false && var.vpc_id == null)
+      error_message = "The variable vpc_id must be set if create_vpc is false"
+    }
+
+    precondition {
+      condition     = !(var.create_vpc == false && length(var.private_subnet_ids) == 0)
       error_message = "The variable private_subnets must be set if create_vpc is false"
     }
 
     precondition {
-      condition     = !(var.create_vpc == false && length(var.public_subnets) == 0)
+      condition     = !(var.create_vpc == false && length(var.public_subnet_ids) == 0)
       error_message = "The variable public_subnets must be set if create_vpc is false"
+    }
+
+    precondition {
+      condition     = !(var.create_vpc == false && length(var.security_group_ids) == 0)
+      error_message = "The variable security_group_ids must be set if create_vpc is false"
     }
   }
 }
@@ -80,12 +100,12 @@ module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "5.17.0"
 
-  name = "devzero-${terraform.workspace}-${random_string.this.result}-vpc"
+  name = "devzero-${terraform.workspace}-${random_string.this.result}"
   cidr = var.cidr
 
   azs             = local.azs
-  public_subnets  = local.calculated_public_subnets
-  private_subnets = local.calculated_private_subnets
+  public_subnets  = local.calculated_public_subnets_cidrs
+  private_subnets = local.calculated_private_subnets_cidrs
 
 
   enable_nat_gateway = true
@@ -104,7 +124,7 @@ module "vpc" {
       from_port = 0
       to_port   = 0
       protocol  = "-1"
-      cidr_blocks = join(",", local.calculated_private_subnets)
+      cidr_blocks = join(",", local.calculated_private_subnets_cidrs)
     }
   ]
 }
@@ -121,12 +141,12 @@ module "eks" {
 
   source = "../../../modules/aws/eks"
 
-  cluster_name = "${terraform.workspace}-${random_string.this.result}-eks"
+  cluster_name = "${terraform.workspace}-${random_string.this.result}"
 
   region               = var.region
   environment          = var.environment
-  security_group_ids   = [module.vpc.default_security_group_id]
-  subnet_ids           = module.vpc.private_subnets
+  security_group_ids   = local.calculated_security_group_ids
+  subnet_ids           = local.calculated_private_subnets_ids
   desired_node_size    = var.desired_node_size
   max_node_size        = var.max_node_size
   min_node_size        = var.desired_node_size
@@ -167,6 +187,8 @@ module "eks_blueprints_addons" {
   cluster_endpoint  = module.eks.endpoint
   cluster_version   = module.eks.version
   oidc_provider_arn = module.eks.provider_id
+
+  observability_tag = null
 
   tags = {
     Terraform = "true"
@@ -228,6 +250,8 @@ module "efs" {
 
   efs_enabled = true
 
+  name = "${module.eks.name}-efs"
+
   environment = var.environment
 
   efs_pv_name            = "${terraform.workspace}-${random_string.this.result}-efs-pv"
@@ -242,11 +266,13 @@ module "efs" {
   aws_eks_cluster_auth_token = module.eks.aws_eks_cluster_auth_token
   provider_url               = module.eks.provider_url
 
-  security_group_ids = [module.vpc.default_security_group_id]
-  app_subnet_id_01   = module.vpc.private_subnets[0]
-  app_subnet_id_02   = module.vpc.private_subnets[1]
+  security_group_ids = local.calculated_security_group_ids
+  # Hack to allow terraform to know keys ahead of time
+  subnet_ids = {  for i, r in local.calculated_private_subnets_ids : "mount_${i}" => r }
 
-  depends_on = [module.eks]
+  depends_on = [
+    module.eks,
+  ]
 }
 
 ################################################################################

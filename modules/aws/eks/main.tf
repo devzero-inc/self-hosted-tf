@@ -92,6 +92,8 @@ resource "aws_eks_cluster" "this" {
   role_arn = aws_iam_role.eks-cluster.arn
   version  = "1.30"
 
+  enabled_cluster_log_types = []
+
   vpc_config {
     security_group_ids      = var.security_group_ids
     subnet_ids              = var.subnet_ids

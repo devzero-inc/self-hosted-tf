@@ -22,6 +22,10 @@ variable "efs_driver_name" {
   type = string
 }
 
+variable "name" {
+  type = string
+}
+
 variable "environment" {
   type = string
 }
@@ -92,14 +96,9 @@ variable "security_group_ids" {
   type        = list(string)
 }
 
-variable "app_subnet_id_01" {
-  description = "Subnets"
-  type        = string
-}
-
-variable "app_subnet_id_02" {
-  description = "Subnets"
-  type        = string
+variable "subnet_ids" {
+  description = "Subnets IDS for mount targets"
+  type        = map(string)
 }
 
 variable "common_tags" {

@@ -242,37 +242,35 @@ resource "kubernetes_storage_class" "gp3_default" {
 ################################################################################
 
 module "efs" {
-  providers = {
-    aws        = aws
-    kubernetes = kubernetes
-    helm       = helm
+  depends_on = [
+    module.vpc,
+  ]
+  source  = "terraform-aws-modules/efs/aws"
+  version = "1.6.5"
+
+  name = module.eks.cluster_name
+  encrypted = true
+
+  performance_mode = "generalPurpose"
+  throughput_mode = "elastic"
+
+  create_backup_policy = false
+  enable_backup_policy = false
+
+  lifecycle_policy = {
+    transition_to_ia = "AFTER_30_DAYS"
   }
 
-  source = "../../../modules/aws/efs"
+  mount_targets = { for i, r in local.calculated_private_subnets_ids : "mount_${i}" => {subnet_id : r } }
 
-  efs_enabled = true
-
-  name = "${module.eks.name}-efs"
-
-  environment = var.environment
-
-  efs_pv_name            = "${terraform.workspace}-${random_string.this.result}-efs-pv"
-  efs_sc_name            = "${terraform.workspace}-${random_string.this.result}-efs-csi-sc"
-  efs_claim_name         = "${terraform.workspace}-${random_string.this.result}-efs-csi-claim"
-  efs_driver_name        = "${terraform.workspace}-${random_string.this.result}-efs-csi-driver"
-  efs_controller_sa_name = "${terraform.workspace}-${random_string.this.result}-efs-csi-controller-sa"
-
-  cluster_name               = module.eks.name
-  cluster_endpoint           = module.eks.endpoint
-  cluster_ca_certificate     = module.eks.cluster_ca_certificate
-  aws_eks_cluster_auth_token = module.eks.aws_eks_cluster_auth_token
-  provider_url               = module.eks.provider_url
-
-  security_group_ids = local.calculated_security_group_ids
-  # Hack to allow terraform to know keys ahead of time
-  subnet_ids = {  for i, r in local.calculated_private_subnets_ids : "mount_${i}" => r }
-
-  depends_on = [
-    module.eks,
-  ]
+  create_security_group      = true
+  security_group_description = "EFS security group for ${module.eks.cluster_name} EKS cluster"
+  security_group_vpc_id      = module.vpc.vpc_id
+  security_group_rules = {
+    vpc = {
+      # relying on the defaults provided for EFS/NFS (2049/TCP + ingress)
+      description = "NFS ingress from VPC private subnets"
+      cidr_blocks = module.vpc.private_subnets_cidr_blocks
+    }
+  }
 }

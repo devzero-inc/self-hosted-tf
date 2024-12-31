@@ -4,70 +4,96 @@
 PROJECT_ID=$(gcloud config get-value project)
 
 ALL_PERMISSIONS=(
-  "compute.instances.setLabels"
+  "compute.instanceGroupManagers.update"
   "compute.instanceGroupManagers.delete"
   "compute.instanceGroupManagers.get"
+  "compute.instanceGroupManagers.list"
+  "compute.instances.list"
   "compute.instanceGroupManagers.update"
   "deploymentmanager.deployments.create"
   "deploymentmanager.deployments.delete"
-  "deploymentmanager.operations.get"
-  "deploymentmanager.resources.get"
   "deploymentmanager.deployments.get"
-  "deploymentmanager.manifests.get"
+  "deploymentmanager.resources.get"
+  "deploymentmanager.deployments.list"
+  "deploymentmanager.deployments.get"
   "deploymentmanager.deployments.update"
-  "deploymentmanager.types.list"
-  "compute.routes.create"
-  "compute.subnetworks.update"
-  "compute.networks.updatePolicy"
-  "compute.firewalls.create"
-  "compute.instanceTemplates.create"
-  "compute.routers.create"
+  "deploymentmanager.deployments.update"
+  "deploymentmanager.deployments.update"
   "compute.subnetworks.create"
+  "compute.networks.update"
+  "compute.firewalls.create"
+  "compute.firewalls.create"
+  "compute.networks.create"
+  "compute.instanceTemplates.create"
+  "compute.routes.create"
+  "compute.firewalls.create"
+  "compute.subnetworks.create"
+  "compute.instances.setLabels"
   "compute.networks.create"
   "compute.networks.delete"
   "compute.instanceTemplates.delete"
-  "compute.routers.delete"
+  "compute.routes.delete"
   "compute.firewalls.delete"
   "compute.subnetworks.delete"
-  "resourcemanager.projects.get"
+  "compute.networks.delete"
+  "compute.projects.get"
   "compute.images.list"
   "compute.machineTypes.list"
   "compute.networks.list"
   "compute.instances.get"
   "compute.instanceTemplates.get"
+  "compute.instanceTemplates.list"
   "compute.networks.get"
+  "compute.instances.get"
   "compute.routes.list"
   "compute.firewalls.list"
   "compute.subnetworks.list"
+  "compute.networks.get"
+  "compute.networks.list"
+  "compute.networks.update"
   "compute.routes.delete"
+  "compute.subnetworks.update"
+  "compute.networks.update"
+  "compute.projects.setCommonInstanceMetadata"
+  "compute.firewalls.delete"
+  "compute.firewalls.delete"
   "compute.instances.create"
-  "container.clusters.create"
-  "container.nodePools.create"
-  "container.clusters.delete"
-  "container.nodePools.delete"
-  "container.clusters.get"
-  "container.nodePools.get"
   "container.clusters.update"
-  "container.nodePools.update"
-  "compute.instances.attachDisk"
-  "compute.instances.setMetadata"
-  "pubsub.topics.delete"
-  "pubsub.topics.get"
-  "pubsub.topics.getIamPolicy"
-  "pubsub.topics.create"
-  "pubsub.topics.update"
-  "pubsub.subscriptions.create"
-  "pubsub.subscriptions.delete"
+  "container.clusters.create"
   "iam.serviceAccounts.create"
-  "iam.roles.create"
+  "container.clusters.update"
+  "container.clusters.delete"
   "iam.serviceAccounts.delete"
+  "container.clusters.get"
+  "container.clusters.list"
+  "container.clusters.getIamPolicy"
+  "container.operations.list"
+  "container.clusters.update"
+  "iam.serviceAccounts.setIamPolicy"
+  "iam.roles.update"
+  "iam.serviceAccounts.create"
+  "iam.workloadIdentityPools.create"
+  "iam.roles.create"
+  "iam.serviceAccounts.create"
+  "iam.serviceAccounts.delete"
+  "iam.workloadIdentityPools.delete"
   "iam.roles.delete"
+  "iam.roles.update"
+  "iam.serviceAccounts.get"
+  "iam.roles.get"
+  "iam.roles.list"
   "iam.serviceAccounts.actAs"
   "cloudkms.cryptoKeys.create"
-  "cloudkms.cryptoKeys.get"
+  "cloudkms.keyRings.create"
   "cloudkms.cryptoKeys.getIamPolicy"
-  "cloudkms.keyRings.get"
-  "cloudkms.cryptoKeys.setIamPolicy"
+  "cloudkms.cryptoKeys.list"
+  "logging.sinks.create"
+  "logging.logs.delete"
+  "logging.logs.list"
+  "pubsub.topics.create"
+  "pubsub.topics.delete"
+  "pubsub.topics.get"
+  "pubsub.topics.update"
 )
 
 
@@ -79,10 +105,9 @@ fi
 
 # Get the authenticated user
 USER_EMAIL=$(gcloud config get-value account)
-
-# Extract roles assigned to the user
-echo "Extracting roles for $USER_EMAIL..."
-roles=$(jq -r '.[] | .bindings[] | select(.members[] | contains("'$USER_EMAIL'")) | .role' roles_assigned.json | sort -u)
+roles=$(gcloud projects get-iam-policy $PROJECT_ID --flatten="bindings[].members" \
+            --filter="bindings.members:$USER_EMAIL" \
+            --format="json(bindings.role)" | jq -r '.[].bindings.role')
 
 # Print roles
 echo "Roles assigned to $USER_EMAIL:"
@@ -113,7 +138,7 @@ REMAINING_PERMISSIONS=()
 # Loop through all permissions and check if they're assigned
 for PERMISSION in "${ALL_PERMISSIONS[@]}"; do
   if ! echo "$user_permissions" | grep -q "$PERMISSION"; then
-    REMAINING_PERMISSIONS+=("\"$PERMISSION\"")
+    REMAINING_PERMISSIONS+=("$PERMISSION")
   fi
 done
 
@@ -125,7 +150,7 @@ else
   printf '%s\n' "${REMAINING_PERMISSIONS[@]}"
 
   # Ask user for approval to create the role
-  echo -n "Do you approve creating a custom role with these permissions and attaching it to you? (y/N): "
+  echo -n "Custom role is successfully created. Do you want to attach this role to your GCP user? (y/N): "
   read APPROVAL
 
   if [[ "$APPROVAL" =~ ^[Yy]$ ]]; then

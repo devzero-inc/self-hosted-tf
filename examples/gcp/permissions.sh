@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# Retrieve the active project
 PROJECT_ID=$(gcloud config get-value project)
 
 ALL_PERMISSIONS=(
@@ -96,60 +95,50 @@ ALL_PERMISSIONS=(
   "pubsub.topics.update"
 )
 
-
-# Ensure PROJECT_ID is set
 if [ -z "$PROJECT_ID" ]; then
   echo "Project ID is not set. Please set the project using 'gcloud config set project PROJECT_ID'"
   exit 1
 fi
 
-# Get the authenticated user
 USER_EMAIL=$(gcloud config get-value account)
 roles=$(gcloud projects get-iam-policy $PROJECT_ID --flatten="bindings[].members" \
             --filter="bindings.members:$USER_EMAIL" \
             --format="json(bindings.role)" | jq -r '.[].bindings.role')
 
-# Print roles
 echo "Roles assigned to $USER_EMAIL:"
 echo "$roles"
 
 echo -e "\nFetching permissions for each role..."
 
-# Initialize user_permissions variable
 user_permissions=""
 
-# Loop through each role and fetch permissions
 for role in $roles; do
   echo -e "\nRole: $role"
   
-  # Check if it's a custom or predefined role
   if [[ "$role" == roles/* ]]; then
-    permissions=$(gcloud iam roles describe "$role" --format="json" | jq -r '.includedPermissions[]' 2>/dev/null)
+    permissions=$(gcloud iam roles describe "$role" --format="json" 2>/dev/null | jq -r '.includedPermissions[]')
   else
-    permissions=$(gcloud iam roles describe "${role##*/}" --format="json" | jq -r '.includedPermissions[]' 2>/dev/null)
+    permissions=$(gcloud iam roles describe "${role##*/}" --project="$PROJECT_ID" --format="json" 2>/dev/null | jq -r '.includedPermissions[]')
   fi
   
-  # Append permissions to the user_permissions variable
   user_permissions+="$permissions"$'\n'
 done
 
+
 REMAINING_PERMISSIONS=()
 
-# Loop through all permissions and check if they're assigned
 for PERMISSION in "${ALL_PERMISSIONS[@]}"; do
   if ! echo "$user_permissions" | grep -q "$PERMISSION"; then
     REMAINING_PERMISSIONS+=("$PERMISSION")
   fi
 done
 
-# Print remaining permissions (if any)
 if [ ${#REMAINING_PERMISSIONS[@]} -eq 0 ]; then
   echo "All required permissions are assigned."
 else
   echo "Missing permissions:"
   printf '%s\n' "${REMAINING_PERMISSIONS[@]}"
 
-  # Ask user for approval to create the role
   echo -n "Custom role is successfully created. Do you want to attach this role to your GCP user? (y/N): "
   read APPROVAL
 
@@ -158,7 +147,6 @@ else
     ROLE_FILE="custom_dsh_role.json"
     echo "Creating the custom role..."
 
-    # Create custom role JSON file
     cat > "$ROLE_FILE" <<EOF
 {
   "title": "Custom Role for Missing Permissions",
@@ -168,13 +156,10 @@ else
 }
 EOF
 
-    # Create the role using gcloud
     gcloud iam roles create "$ROLE_NAME" --project="$PROJECT_ID" --file="$ROLE_FILE"
 
-    # Correct role name format for attachment
     ROLE_RESOURCE="projects/$PROJECT_ID/roles/$ROLE_NAME"
 
-    # Attach the custom role to the user
     gcloud projects add-iam-policy-binding "$PROJECT_ID" \
       --member="user:$USER_EMAIL" \
       --role="$ROLE_RESOURCE"

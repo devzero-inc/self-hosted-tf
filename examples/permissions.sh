@@ -26,6 +26,7 @@ control_plane_actions=(
     "ec2:CreateInternetGateway"
     "ec2:CreateLaunchTemplate"
     "ec2:CreateLaunchTemplateVersion"
+    "ec2:CreateRoute"
     "ec2:CreateRouteTable"
     "ec2:CreateSecurityGroup"
     "ec2:CreateSubnet"
@@ -193,6 +194,7 @@ data_plane_actions=(
     "ec2:CreateInternetGateway"
     "ec2:CreateLaunchTemplate"
     "ec2:CreateLaunchTemplateVersion"
+    "ec2:CreateRoute"
     "ec2:CreateRouteTable"
     "ec2:CreateSecurityGroup"
     "ec2:CreateSubnet"
@@ -380,11 +382,6 @@ get_attached_policies() {
     fi
 }
 
-get_inline_policies() {
-    local role_name=$1
-    aws iam list-role-policies --role-name "$role_name" --query "PolicyNames[]" --output text
-}
-
 get_inline_policy_actions() {
     local role_name=$1
     local policy_name=$2
@@ -394,27 +391,39 @@ get_inline_policy_actions() {
 create_policy_json() {
     local output_file="policy.json"
     local missing_permissions=("$@")
-    
-    # Start the JSON file
+    declare -A service_action_map
+
+    for action in "${missing_permissions[@]}"; do
+        service_prefix=$(echo "$action" | cut -d':' -f1)
+        if [[ -z "${service_action_map[$service_prefix]}" ]]; then
+            service_action_map[$service_prefix]="$action"
+        else
+            service_action_map[$service_prefix]="${service_action_map[$service_prefix]},$action"
+        fi
+    done
+
     echo "{" > $output_file
     echo "  \"Version\": \"2012-10-17\"," >> $output_file
     echo "  \"Statement\": [" >> $output_file
-    echo "    {" >> $output_file
-    echo "      \"Effect\": \"Allow\"," >> $output_file
-    echo "      \"Action\": [" >> $output_file
-    
-    # Add all permissions
-    for action in "${missing_permissions[@]}"; do
-        echo "        \"$action\"," >> $output_file
+
+    for service_prefix in "${!service_action_map[@]}"; do
+        echo "    {" >> $output_file
+        echo "      \"Effect\": \"Allow\"," >> $output_file
+        echo "      \"Action\": [" >> $output_file
+        IFS=',' read -ra actions <<< "${service_action_map[$service_prefix]}"
+        for action in "${actions[@]}"; do
+            echo "        \"$action\"," >> $output_file
+        done
+        sed -i '$ s/,$//' $output_file  # Remove trailing comma
+        echo "      ]," >> $output_file
+        echo "      \"Resource\": \"*\"" >> $output_file
+        echo "    }," >> $output_file
     done
-    
-    # Remove the trailing comma from the last action
-    sed -i '' -e '$ s/,$//' $output_file
-    
-    # Close the JSON structure
-    echo "      ]," >> $output_file
-    echo "      \"Resource\": \"*\"" >> $output_file
-    echo "    }" >> $output_file
+
+  
+    sed -i '$ s/,$//' $output_file
+
+  
     echo "  ]" >> $output_file
     echo "}" >> $output_file
 
@@ -552,7 +561,6 @@ else
     print_weird_choice "No inline policies found\n"
 fi
 
-# Get the permissions granted to the role by those policies
 role_actions=""
 for policy_arn in $attached_policies; do
     policy_actions=$(get_policy_actions "$policy_arn")
@@ -564,38 +572,27 @@ for policy_name in $inline_policies; do
     role_actions+="$inline_policy_actions "
 done
 
-role_actions_array=($role_actions)
-print_success "Successfully retrieved list of permitted action\n"
+print_success "Successfully retrieved list of permitted actions\n"
+
+if echo "$role_actions" | grep -Eq '(^|[[:space:]])\*($|[[:space:]])'; then
+    print_success "Full admin access (*) detected in actions, all permissions are granted!\n"
+    exit 0
+fi
 
 print_wip "Verifying if there are any missing permissions\n"
 
 missing_permissions=()
 
-# Trim whitespace from role_actions
-role_actions_trimmed=$(echo "$role_actions" | xargs)
-
-if [ "$role_actions_trimmed" = "*" ]; then
-    print_success "Full admin access detected (*), all permissions are granted\n"
-    exit 0
-fi
-
-# Check each required action
 for action in "${required_actions[@]}"; do
-    # Extract the service prefix (e.g., "iam" from "iam:CreateRole")
     service=$(echo "$action" | cut -d':' -f1)
-    
-    # Check for service-level wildcard (e.g., "iam:*")
     if echo "$role_actions" | grep -q "${service}:\*"; then
         continue
     fi
-    
-    # Check for specific action if no wildcards matched
     if ! echo "$role_actions" | grep -q "$action"; then
         missing_permissions+=("$action")
     fi
 done
 
-# If there are missing permissions, generate a custom policy
 if [ ${#missing_permissions[@]} -gt 0 ]; then
     print_failure "Your role/user isn't allowed to run these required actions (more info: https://www.devzero.io/docs/admin/install/aws)\n"
 
@@ -610,4 +607,5 @@ if [ ${#missing_permissions[@]} -gt 0 ]; then
 else
     print_success "You have all the permissions you need to deploy DevZero!"
 fi
+
 

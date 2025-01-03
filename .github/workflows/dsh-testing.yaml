@@ -34,4 +34,5 @@ jobs:
         DZ_USERNAME="${{ secrets.DZ_USERNAME }}"
         DZ_PASSWORD="${{ secrets.DZ_PASSWORD }}"
         EMAIL="${{ secrets.EMAIL }}"
+        TF_BACKEND="S3"
         ./dsh-testing.sh

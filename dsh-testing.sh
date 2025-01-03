@@ -66,9 +66,3 @@ main() {
 
 main
 
-# helm install dz-control-plane oci://registry.devzero.io/devzero-control-plane/beta/dz-control-plane \
-#   -n devzero --set domain=$DOMAIN_NAME --set issuer.email=$EMAIL
-
-# kubectl get ingress -n devzero
-
-echo "DevZero control plane setup completed successfully!"

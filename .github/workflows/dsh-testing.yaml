@@ -35,4 +35,5 @@ jobs:
         DZ_PASSWORD="${{ secrets.DZ_PASSWORD }}"
         EMAIL="${{ secrets.EMAIL }}"
         TF_BACKEND="S3"
+        BUCKET_NAME="${{ secrets.BUCKET_NAME }}"
         ./dsh-testing.sh

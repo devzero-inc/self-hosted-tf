@@ -11,7 +11,7 @@ cleanup() {
 apply_terraform() {
   echo "Initializing Terraform..."
   if [[ "$TF_BACKEND" == "S3" ]]; then
-    terraform init -backend-config="bucket=dsh-testing-tf-state" \
+    terraform init -backend-config="bucket=${BUCKET_NAME}" \
                    -backend-config="key=devzero/terraform.tfstate" \
                    -backend-config="region=us-west-1"
   else

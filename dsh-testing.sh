@@ -2,12 +2,6 @@
 
 set -e   
 
-cleanup() {
-  echo "Cleaning up resources..."
-  terraform destroy -auto-approve
-  echo "Resources cleaned up."
-}
-
 apply_terraform() {
   echo "Initializing Terraform..."
   if [[ "$TF_BACKEND" == "S3" ]]; then
@@ -46,6 +40,12 @@ install_devzero_control_plane() {
 
 get_ingress_service() {
   kubectl get ingress -n devzero
+}
+
+cleanup() {
+  echo "Cleaning up resources..."
+  terraform destroy -auto-approve
+  echo "Resources cleaned up."
 }
 
 main() {

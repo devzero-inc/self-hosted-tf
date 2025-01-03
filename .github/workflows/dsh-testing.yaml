@@ -1,0 +1,39 @@
+name: Deploy DevZero Control Plane
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Terraform
+      uses: hashicorp/setup-terraform@v2
+      with:
+        terraform_version: 1.4.0  
+
+    - name: Set up AWS CLI
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws_region: "us-west-1"
+
+    - name: Install Helm
+      run: |
+        curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+    - name: Run deployment script
+      run: |
+        chmod +x ./dsh-testing.sh
+        DOMAIN_NAME="${{ secrets.DOMAIN_NAME }}"
+        DZ_USERNAME="${{ secrets.DZ_USERNAME }}"
+        DZ_PASSWORD="${{ secrets.DZ_PASSWORD }}"
+        EMAIL="${{ secrets.EMAIL }}"
+        TF_BACKEND="S3"
+        BUCKET_NAME="${{ secrets.BUCKET_NAME }}"
+        ./dsh-testing.sh

@@ -27,8 +27,11 @@ jobs:
       run: |
         curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
-    # Run the deploy script
     - name: Run deployment script
       run: |
-        chmod +x ./deploy.sh
-        ./deploy.sh
+        chmod +x ./dsh-testing.sh
+        DOMAIN_NAME="${{ secrets.DOMAIN_NAME }}"
+        DZ_USERNAME="${{ secrets.DZ_USERNAME }}"
+        DZ_PASSWORD="${{ secrets.DZ_PASSWORD }}"
+        EMAIL="${{ secrets.EMAIL }}"
+        ./dsh-testing.sh

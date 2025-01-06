@@ -16,8 +16,8 @@ apply_terraform() {
 }
 
 get_eks_info() {
-  CLUSTER_NAME=$(terraform output -json | jq -r .eks_cluster_name.value)
-  AWS_REGION=$(terraform output -json | jq -r .region.value)
+  CLUSTER_NAME=$(terraform output -raw eks_cluster_name)
+  AWS_REGION=$(terraform output -raw region)
 }
 
 configure_kubeconfig() {
@@ -67,7 +67,7 @@ main() {
 
   # get_ingress_service
 
-  echo "DevZero control plane setup completed successfully!"
+  echo "DevZero control plane testing completed successfully!"
 }
 
 main

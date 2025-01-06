@@ -3,7 +3,7 @@ name: Deploy DevZero Control Plane
 on:
   push:
     branches:
-      - main
+      - garvit/dsh-testing-2
 
 jobs:
   apply:
@@ -75,7 +75,3 @@ jobs:
         run: |
           chmod +x ./dsh-testing.sh
           ./dsh-testing.sh cleanup
-        EMAIL="${{ secrets.EMAIL }}"
-        TF_BACKEND="S3"
-        BUCKET_NAME="${{ secrets.BUCKET_NAME }}"
-        ./dsh-testing.sh

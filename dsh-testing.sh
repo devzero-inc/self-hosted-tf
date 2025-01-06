@@ -16,8 +16,8 @@ apply_terraform() {
 }
 
 get_eks_info() {
-  CLUSTER_NAME=$(terraform output eks_cluster_name | tr -d '[:space:]')
-  AWS_REGION=$(terraform output region | tr -d '[:space:]')
+  CLUSTER_NAME=$(terraform output -json | jq -r .eks_cluster_name.value)
+  AWS_REGION=$(terraform output -json | jq -r .region.value)
 }
 
 configure_kubeconfig() {

@@ -17,13 +17,12 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.5.7 # Specify the required version
-      
-      - name: Set up AWS CLI
+
+      - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: "us-west-1"
+          role-to-assume: arn:aws:iam::484907513542:role/github-actions-oidc-role
+          aws-region: us-west-1
       
       - name: Install Helm
         run: |
@@ -51,12 +50,11 @@ jobs:
         with:
           terraform_version: 1.5.7
 
-      - name: Set up AWS CLI
+      - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: "us-west-1"
+          role-to-assume: arn:aws:iam::484907513542:role/github-actions-oidc-role
+          aws-region: us-west-1
 
       - name: Run EKS Setup Stage
         run: |
@@ -82,12 +80,11 @@ jobs:
         with:
           terraform_version: 1.5.7 # Add Terraform setup here as well
 
-      - name: Set up AWS CLI
+      - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: "us-west-1"
+          role-to-assume: arn:aws:iam::484907513542:role/github-actions-oidc-role
+          aws-region: us-west-1
 
       - name: Run Destroy Stage
         run: |

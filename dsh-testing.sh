@@ -67,7 +67,7 @@ main() {
 
   # get_ingress_service
 
-  echo "DevZero control plane setup completed successfully!"
+  echo "DevZero control plane testing completed successfully!"
 }
 
 main

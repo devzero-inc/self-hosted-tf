@@ -572,7 +572,7 @@ for policy_name in $inline_policies; do
     role_actions+="$inline_policy_actions "
 done
 
-print_success "Successfully retrieved list of permitted action\n"
+print_success "Successfully retrieved list of permitted actions\n"
 
 if echo "$role_actions" | grep -Eq '(^|[[:space:]])\*($|[[:space:]])'; then
     print_success "Full admin access (*) detected in actions, all permissions are granted!\n"

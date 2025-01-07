@@ -9,15 +9,6 @@ ALL_PERMISSIONS=(
   "compute.instanceGroupManagers.list"
   "compute.instances.list"
   "compute.instanceGroupManagers.update"
-  "deploymentmanager.deployments.create"
-  "deploymentmanager.deployments.delete"
-  "deploymentmanager.deployments.get"
-  "deploymentmanager.resources.get"
-  "deploymentmanager.deployments.list"
-  "deploymentmanager.deployments.get"
-  "deploymentmanager.deployments.update"
-  "deploymentmanager.deployments.update"
-  "deploymentmanager.deployments.update"
   "compute.subnetworks.create"
   "compute.networks.update"
   "compute.firewalls.create"
@@ -113,7 +104,6 @@ echo -e "\nFetching permissions for each role..."
 user_permissions=""
 
 for role in $roles; do
-  echo -e "\nRole: $role"
   
   if [[ "$role" == roles/* ]]; then
     permissions=$(gcloud iam roles describe "$role" --format="json" 2>/dev/null | jq -r '.includedPermissions[]')
@@ -136,33 +126,33 @@ done
 if [ ${#REMAINING_PERMISSIONS[@]} -eq 0 ]; then
   echo "All required permissions are assigned."
 else
-  echo "Missing permissions:"
-  printf '%s\n' "${REMAINING_PERMISSIONS[@]}"
-
-  echo -n "Custom role is successfully created. Do you want to attach this role to your GCP user? (y/N): "
+  echo -n "There are some missing permissions. Do you want to attach a custom role to your GCP user with all the remaining permissions? (y/N): "
   read APPROVAL
+
 
   if [[ "$APPROVAL" =~ ^[Yy]$ ]]; then
     ROLE_NAME="custom_dsh_role_$(date +%s | head -c 10)"
     ROLE_FILE="custom_dsh_role.json"
+    echo
     echo "Creating the custom role..."
 
     cat > "$ROLE_FILE" <<EOF
 {
-  "title": "Custom Role for Missing Permissions",
+  "title": "Custom DSH Role",
   "description": "Custom role to provide missing permissions for user.",
   "includedPermissions": $(printf '%s\n' "${REMAINING_PERMISSIONS[@]}" | jq -R . | jq -s .),
   "stage": "GA"
 }
 EOF
 
-    gcloud iam roles create "$ROLE_NAME" --project="$PROJECT_ID" --file="$ROLE_FILE"
+    gcloud iam roles create "$ROLE_NAME" --quiet --project="$PROJECT_ID" --file="$ROLE_FILE"
 
     ROLE_RESOURCE="projects/$PROJECT_ID/roles/$ROLE_NAME"
 
     gcloud projects add-iam-policy-binding "$PROJECT_ID" \
       --member="user:$USER_EMAIL" \
-      --role="$ROLE_RESOURCE"
+      --role="$ROLE_RESOURCE" \
+      --quiet
 
     echo "Role created and assigned to $USER_EMAIL."
   else

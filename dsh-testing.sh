@@ -47,28 +47,3 @@ cleanup() {
   terraform destroy -auto-approve
   echo "Resources cleaned up."
 }
-
-main() {
-  trap cleanup EXIT
-
-  cd examples/aws/control-and-data-plane
-
-  apply_terraform
-
-  get_eks_info
-
-  configure_kubeconfig
-
-  # login_to_helm_registry
-
-  # install_devzero_crds
-
-  # install_devzero_control_plane
-
-  # get_ingress_service
-
-  echo "DevZero control plane testing completed successfully!"
-}
-
-main
-

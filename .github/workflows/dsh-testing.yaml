@@ -32,8 +32,9 @@ jobs:
       - name: Run Apply Stage
         run: |
           chmod +x ./dsh-testing.sh
+          source ./dsh-testing.sh
           TF_BACKEND="S3"
-          ./dsh-testing.sh apply_terraform
+          apply_terraform
 
   helm-install:
     name: EKS Setup

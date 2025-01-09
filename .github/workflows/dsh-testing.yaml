@@ -59,6 +59,7 @@ jobs:
         run: |
           DOMAIN_NAME="dsh-testing.com"
           chmod +x ./dsh-testing.sh
+          source ./dsh-testing.sh
           # ./dsh-testing.sh get_eks_info
           # ./dsh-testing.sh configure_kubeconfig
           # ./dsh-testing.sh login_to_helm_registry
@@ -89,4 +90,5 @@ jobs:
       - name: Run Destroy Stage
         run: |
           chmod +x ./dsh-testing.sh
-          ./dsh-testing.sh cleanup
+          source ./dsh-testing.sh
+          cleanup
